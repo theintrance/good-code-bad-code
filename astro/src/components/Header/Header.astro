@@ -23,14 +23,14 @@ const lang = getLanguageFromURL(currentPage)
     </div>
     <div class="logo flex">
       <a href="/">
-        <AstroLogo size={40} />
+        <img src="https://github.com/theintrance.png" width="50" height="50" />
         <h1>{SITE.title ?? 'Good Code, Bad Code'}</h1>
       </a>
     </div>
     <!-- <div style="flex-grow: 1;"></div> -->
-    <div class="search-item">
+    <!-- <div class="search-item">
       <Search client:idle />
-    </div>
+    </div> -->
     {
       KNOWN_LANGUAGE_CODES.length > 1 && (
         <LanguageSelect lang={lang} client:idle />
