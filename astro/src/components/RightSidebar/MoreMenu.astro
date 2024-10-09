@@ -10,8 +10,23 @@ const { editHref } = Astro.props
 const showMoreSection = Boolean(COMMUNITY_INVITE_URL)
 ---
 
-<!-- {showMoreSection && <h2 class="heading">More</h2>}
+{showMoreSection && <h2 class="heading">More</h2>}
 <ul>
+  <a href="https://github.com/theintrance/good-code-bad-code">
+    <li class={`header-link depth-3`}>
+      <span>View on Github</span>
+    </li>
+  </a>
+</ul>
+<ul>
+  <a href="https://github.com/theintrance/good-code-bad-code/issues">
+    <li class={`header-link depth-3`}>
+      <span>Report an Issue</span>
+    </li>
+  </a>
+</ul>
+
+<!-- <ul>
   {
     editHref && (
       <li class={`header-link depth-2`}>
