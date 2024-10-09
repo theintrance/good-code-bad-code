@@ -1,6 +1,6 @@
 export const SITE = {
-  title: 'Documentation',
-  description: 'Your website description.',
+  title: 'Good Code, Bad Code',
+  description: 'Good Code, Bad Code',
   defaultLanguage: 'en-us'
 } as const
 
@@ -15,8 +15,7 @@ export const OPEN_GRAPH = {
 }
 
 export const KNOWN_LANGUAGES = {
-  Deutsch: 'de',
-  English: 'en'
+  Korean: 'ko'
 } as const
 export const KNOWN_LANGUAGE_CODES = Object.values(KNOWN_LANGUAGES)
 
@@ -36,20 +35,10 @@ export type Sidebar = Record<
   Record<string, { text: string; link: string }[]>
 >
 export const SIDEBAR: Sidebar = {
-  de: {
-    Überschrift: [
-      { text: 'Einführung', link: 'de/introduction' },
-      { text: 'Seite 2', link: 'de/page-2' },
-      { text: 'Seite 3', link: 'de/page-3' }
+  ko: {
+    'Introduction': [
+      { text: 'Introduction', link: 'ko/introduction' }
     ],
-    'Ein weiterer Abschnitt': [{ text: 'Seite 4', link: 'de/page-4' }]
-  },
-  en: {
-    'Section Header': [
-      { text: 'Introduction', link: 'en/introduction' },
-      { text: 'Page 2', link: 'en/page-2' },
-      { text: 'Page 3', link: 'en/page-3' }
-    ],
-    'Another Section': [{ text: 'Page 4', link: 'en/page-4' }]
+    'Chapter 1': [{ text: '코드는 어떻게 소프트웨어가 되는가', link: 'ko/chapter1/1_1_코드는_어떻게_소프트웨어가_되는가' }]
   }
 }
