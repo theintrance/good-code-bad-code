@@ -38,7 +38,7 @@ for chapter in $chapters; do
         content_name=${content_name//[0-9]_[0-9]_/}
         content_name=${content_name//_/ }
     
-        echo "      { text: '$content_name', link: 'ko/$content' }," | tee -a $CONSTS_PATH
+        echo "      { text: '$content_name', link: '/ko/$content' }," | tee -a $CONSTS_PATH
     done
 
     echo "    ]," | tee -a $CONSTS_PATH

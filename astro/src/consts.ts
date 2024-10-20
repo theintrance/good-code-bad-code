@@ -37,7 +37,7 @@ export type Sidebar = Record<
 export const SIDEBAR: Sidebar = {
   ko: {
     'Chapter 1': [
-      { text: '코드는 어떻게 소프트웨어가 되는가', link: 'ko/./chapter1/1_1_코드는_어떻게_소프트웨어가_되는가' },
+      { text: '코드는 어떻게 소프트웨어가 되는가', link: '/ko/./chapter1/1_1_코드는_어떻게_소프트웨어가_되는가' },
     ],
   }
 }
