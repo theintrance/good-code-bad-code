@@ -1,8 +1,21 @@
 ---
 title: '코드는 어떻게 소프트웨어가 되는가'
-description: '코드는 어떻게 소프트웨어가 되는가'
 ---
 
-어떻게 될까?
+### 1.1 개발자 워크플로우
 
-몰라잉
+* **codebase**: 코드가 저장되는 곳 (repository)
+* **submiting code**: 코드를 제출하는 것 (commit, pull request)
+* **code review**: 코드 리뷰
+* **pre-submit check**: 변경 사항을 제출하기 전 체크하는 것 (pre-merge hook, pre-merge check, pre-commit check)
+* **release**: 릴리즈
+* **production**: 운영 환경
+
+1. 코드베이스에서 코드 작성
+2. 코드 제출 전 검사
+    * 실패 시 제출 불가능
+3. 제출 후 코드 리뷰 & 병합 요청
+    * 피드백 반영
+4. 브랜치 병합
+5. 테스트 
+6. 릴리즈
