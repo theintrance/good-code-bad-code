@@ -115,8 +115,9 @@ a {
   gap: 0.5rem;
 }
 
-article > section :is(ul, ol) > * + * {
+article > section :is(ul, ol) > * {
   margin-top: 0.75rem;
+  line-height: 1.65em;
 }
 
 article > section nav :is(ul, ol) > * + * {
