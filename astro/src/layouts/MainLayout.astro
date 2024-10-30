@@ -125,7 +125,7 @@ const editUrl = `${EDIT_URL}/${currentFile}`
         <LeftSidebar currentPage={currentPage} />
       </aside>
       <div id="grid-main">
-        <PageContent title={data.title} headings={headings} editUrl={editUrl}>
+        <PageContent title={data.title} headings={headings} author={data.author} editUrl={editUrl}>
           <slot />
         </PageContent>
       </div>
