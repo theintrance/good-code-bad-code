@@ -6,15 +6,21 @@ import TableOfContents from '../RightSidebar/TableOfContents'
 type Props = {
   title: string
   headings: MarkdownHeading[]
+  author: string
   editUrl: string
 }
 
-const { title, headings, editUrl } = Astro.props
+const { title, headings, author, editUrl } = Astro.props
 ---
-
 <article id="article" class="content">
   <section class="main-section">
     <h1 class="content-title" id="overview">{title}</h1>
+    {
+    author && <div class="author-info">
+      <img id="author-image" src={`https://github.com/${author}.png`} alt={author} />
+        <a id="author-name" href={`https://github.com/${author}`} target="_blank">@{author}</a>
+      </div>
+    }
     <nav class="block sm:hidden">
       <TableOfContents client:media="(max-width: 50em)" headings={headings} />
     </nav>
@@ -37,6 +43,23 @@ const { title, headings, editUrl } = Astro.props
 
   .content > section {
     margin-bottom: 4rem;
+  }
+  
+  #author-image {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    border: 1px solid #e0e0e0;
+  }
+
+  #author-name {
+    font-size: 1rem;
+    font-weight: normal;
+    margin-left: 0.5rem;
+  }
+  .author-info {
+    display: flex;
+    align-items: center;
   }
 
   .block {
