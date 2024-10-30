@@ -1,0 +1,29 @@
+---
+title: '널값 및 의사코드 규약'
+---
+
+- 많은 프로그래밍 언어에는 값이 없다는 개념을 표현하기 위해 null 값을 사용한다.
+    - 믿을 수 없을 정도로 유용하면서, 동시에 문제가 많은 양극단의 역사를 가지고 있다.
+- 값이 제공되지 않거나 함수가 원하는 결과를 반환할 수 없는 경우가 자주 발생하기에 개념이 유용하다.
+- 어떤 사람은 널값을 사용하지 말아야, 혹은 적어도 함수가 널값을 반환하지 않아야 한다고 조언한다.
+- 최근 안전성에 대한 관심이 높아져 변수의 null 가능성을 명확히 표시하고 컴파일 시 이를 검증하도록 요구된다.
+- 사용중인 언어가 널 안정성을 지원하지 않는다면 옵셔널 타입을 사용하는 것이 좋다.
+- 널 안정성을 사용하는 예
+```java
+Element? getFifthElement(List<Element> elements) { 
+    if (elements.size() < 5) { 
+        return null;
+    }
+    return elements[4];
+}
+```
+
+- Optional을 사용하는 예
+```java
+Optional<Element> getFifthElement(List<Element> elements) { 
+    if (elements.size() < 5) { 
+        return Optional.empty();
+    }
+    return Optional.of(elements[4]);
+}
+```
