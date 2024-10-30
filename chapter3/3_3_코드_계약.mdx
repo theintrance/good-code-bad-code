@@ -32,6 +32,29 @@ title: '코드 계약'
 - 코드 계약을 전달할 때 세부 조항을 사용하는 것은 신뢰할 만한 방법이 아니다.
 - 어쩔 수 없이 저품질의 코드 사용하여 이상하게 동작하는 코드를 만들었을 때
     - 문서화된 세부 조항이 필요하고 개발자들에게 읽도록 해야한다.
-- 명확하지 않을 수도 있는 사항들을 문서화하는 것은 일반적으로 좋은 생각이지만, 너무 많이 의존하지 않는 거서이 최선의 방법이다.
+- 명확하지 않을 수도 있는 사항들을 문서화하는 것은 일반적으로 좋은 생각이지만, 너무 많이 의존하지 않는 것이 최선의 방법이다.
     - 분명한 항목을 통해 명확하게 설명하는 것이 가능하다면 더 바람직하다.
 - 다른 개발자가 코드를 올바르게 사용하기 위해 애초에 발생 자체가 불가능하도록 만드는 것이 좋다.
+
+```java
+class UserSettings { 
+    private UserSettings() {...}
+    // 프라이빗 생성자를 만들어, 이 코드를 사용하는 다른 개발자는 create()밖에 사용할 수 밖에 없도록
+    static UserSettings? create(File location) { 
+        UserSettings settings = new UserSettings();
+        if (!settings.loadSettings(location)) {
+            return null;
+        }
+        settings.init();
+        return settings;
+    }
+
+    private Boolean loadSettings(File location) {...}
+
+    private void init() {...}
+    // 클래스 상태를 변경하는 함수는 전부 private
+
+    Color? getUiColor() {...}
+    // 기존에 null값이 loadSettings()이 불렸는지, init이 되었는지에 의미를 가질 수 있었지만 
+    // 수정 이후 사용자가 색상을 선택하지 않았다는 의미만을 갖는다. 
+}
