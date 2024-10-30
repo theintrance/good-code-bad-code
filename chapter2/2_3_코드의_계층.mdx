@@ -1,0 +1,246 @@
+---
+title: '코드의 계층'
+---
+
+* 추상화 계층을 생성하는 방법 중 하나는 코드를 서로 다른 단위로 분할하여 단위 간 의존 관계를 보여주는 의존성 그래프를 생성하는 것이다.
+    * 여러가지 단위가 있을 수 있다.
+        1. 함수
+        2. 클래스
+        3. 인터페이스
+        4. 패키지, 모듈
+        5. 등등..
+* 어떤 함수가 어떤 함수를 호출하거나, 어떤 클래스가 어떤 인터페이스를 사용한다면 그 둘 사이에 의존성이 있다고 말할 수 있다.
+
+```python
+def get_database_session():
+    return DatabaseSession()
+
+def get_user(user_id: str) -> str:
+    session = get_database_session()
+    user = session.query(User).filter_by(id=user_id).first()
+    return user.name
+```
+* 위 코드에서 `get_user` 함수는 `get_database_session` 함수를 호출하고 있다.
+    * 따라서 `get_user` 함수는 `get_database_session` 함수에 의존하고 있다.
+
+### 2.3.1 API 및 구현 세부 사항
+
+* API 는 서비스를 사용할 때 알아야할 것들에 대한 개념을 형식화 해두고, 구현 세부 사항은 API 뒤로 감춘다.
+
+```c++
+class UserDatabase
+{
+public:
+    // 공개 API
+    User get_user_by_name(std::string name)
+    {
+        ...
+    }
+
+private:
+    // 구현 세부 사항, 외부에 노출되지 않는 함수
+    std::vector<User> query_users(std::string query)
+    {
+        ...
+    }
+}
+```
+
+### 2.3.2 함수
+
+* 함수를 작성할 때 몇가지를 기억해야한다.
+
+1. 함수는 단일 업무만 수행한다.
+    * 함수가 너무 많은 일을 하면 이해하기 어렵고, 테스트하기도 힘들어진다.
+2. 이름이 잘 지어진 다른 함수를 호출하여 더 복잡한 동작을 구성한다.
+    * 함수를 분할하여 코드를 작성하면 이해와 테스트가 쉬워진다.
+
+* 위 규칙을 따랐을 때 함수는 명확하고 단순해지며 코드의 재사용성도 좋아진다.
+
+### 2.3.3 클래스
+
+* 단일 클래스에 대한 몇가지 경험 법칙이 있다:
+    1. **줄 수**: 때떄로 한 클래스 코드는 300줄을 넘지 않아야한다는 가이드라인이 있다.
+        * 300줄 제한이라는 것이 항상 옳다고 할 수는 없지만 그만큼 단일 클래스에 단일 책임만을 부여하는 것이 중요하다는 뜻으로 이해할 수 있다.
+    2. **응집력**: 클래스 내 요소들이 얼마나 잘 속해있는지를 보여주는 척도이다.
+        1. **순차적 응집력**: 커피 한 잔을 만들 때, 원두를 간 다음 추출해야 할 것이다. 이때 갈고 추출하는 두 액션 사이에 "순차적 응집력"이 있다고 말할 수 있다.
+        2. **기능적 응집력**: 커피 한 잔을 만들 때, 커피를 만들기 위한 장비들이 필요할 것이다. 이 장비들이 커피를 위해 모두 필요하므로 "기능적 응집력"이 있다고 말할 수 있다.
+    3.  **관심사의 분리**: 시스템이 각각 별개의 관심사를 다루는 개별 구성 요소로 분리되어야 한다고 주장하는 설계 원칙이다.
+        * 예를 들어 TV 와 게임 콘솔은 하나의 제품이 아니라 서로 다른 관심사를 가지고 있다.
+        * 그렇기 때문에 최신 게임 콘솔이 나왔을 때 TV 를 교체할 필요가 없다.
+
+* 모든 규칙들과 "Single Task" 를 정의하는 것은 주관적인 개념이기 때문에 어떠한 기준으로 판단할 것인지는 개발자의 몫이다.
+
+### 2.3.4 인터페이스
+
+* 계층 사이를 구분하고 구현 세부 사항이 노출되지 않도록 하는 방법 중 하나는 인터페이스를 사용하는 것이다.
+    * 인터페이스는 추상화 계층을 정의하는 데 도움이 된다.
+    * 하나의 추상화 계층에 대해 두 가지 이상의 다른 방식으로 구현을 하거나 향후 다르게 구현할 것으로 예상되는 경우 사용하는게 좋다.
+
+```c++
+class TextImportanceScorer
+{
+public:
+    virtual bool is_important(std::string text) = 0;
+};
+
+class WordBasedScorer : public TextImportanceScorer
+{
+public:
+    bool is_important(std::string text) override
+    {
+        return calculate_importance(text) > THRESHOLD;
+    }
+    ...
+};
+
+class ModelBasedScorer : public TextImportanceScorer 
+{
+public:
+    bool is_important(std::string text) override
+    {
+        NeuralNetwork model = get_model();
+        return model.predict(text) > THRESHOLD;
+    }
+};
+```
+
+* 하나의 인터페이스를 작성 해두고 두 가지의 클래스가 인터페이스로부터 상속받아 구현하므로써 추상화 계층을 정의할 수 있다.
+* 몇 소프트웨어 공학 철학에서는 두 가지 이상의 구현이 필요 없을 때도 인터페이스를 만드는 것이 좋다고 주장하기도 한다.
+    * **장점**:
+        1. 퍼블릭 API 를 명확하게 보여준다.
+        2. 나중에 두 가지 이상의 구현이 필요할 때 바로 인터페이스를 활용할 수 있다.
+        3. 테스트 코드를 작성할 떄 Mocking 이나 페이크 객체로 대체할 수 있어진다.
+            <details>
+            <summary><b>예시 보기</b></summary>
+
+            ```c++
+            struct IDatabase
+            {
+                virtual ~IDatabase() = default;
+                virtual std::string GetUserData(int userId) = 0;
+            };
+
+            class RealDatabase : public IDatabase
+            {
+            public:
+                std::string GetUserData(int userId) override
+                {
+                    return "Real data for user " + std::to_string(userId);
+                }
+            };
+
+            class MockDatabase : public IDatabase
+            {
+            public:
+                std::string GetUserData(int userId) override
+                {
+                    return "Mock data for user " + std::to_string(userId);
+                }
+            };
+
+            class UserService
+            {
+            public:
+                UserService(std::shared_ptr<IDatabase> db) : db_(db) {}
+
+                void PrintUserData(int userId)
+                {
+                    std::cout << db_->GetUserData(userId) << std::endl;
+                }
+
+            private:
+                std::shared_ptr<IDatabase> db_;
+            };
+
+            // Production Code
+            auto realDb = std::make_shared<RealDatabase>();
+            UserService realService(realDb);
+            realService.PrintUserData(1);
+
+            // Test Code
+            auto mockDb = std::make_shared<MockDatabase>();
+            UserService testService(mockDb);
+            testService.PrintUserData(1);
+              ```
+            * 위 코드에서 `IDatabase` 인터페이스를 작성해두고 `RealDatabase` 와 `MockDatabase` 클래스가 인터페이스로부터 상속받아 구현하였다.
+            * 이렇게 하면 테스트 코드에서 `MockDatabase` 클래스를 사용할 수 있게 된다.
+            </details>
+        4. 같은 클래스로 두 가지 하위 문제를 해결할 수 있다.
+            <details>
+            <summary><b>예시 보기</b></summary>
+
+            ```c++
+            struct List
+            {
+                virtual void Add(int value) = 0;
+                virtual int Get(int index) = 0;
+                virtual ~List() = default;
+            };
+
+            struct Queue
+            {
+                virtual void Enqueue(int value) = 0;
+                virtual int Dequeue() = 0;
+                virtual ~Queue() = default;
+            };
+
+            class LinkedList : public List, public Queue
+            {
+            public:
+                void Add(int value) override
+                {
+                    data_.push_back(value);
+                }
+
+                int Get(int index) override
+                {
+                    auto it = data_.begin();
+                    std::advance(it, index);
+                    return *it;
+                }
+
+                void Enqueue(int value) override
+                {
+                    data_.push_back(value);
+                }
+
+                int Dequeue() override
+                {
+                    int value = data_.front();
+                    data_.pop_front();
+                    return value;
+                }
+
+            private:
+                std::list<int> data_;
+            };
+
+            LinkedList listQueue;
+
+            // List로 사용
+            listQueue.Add(1);
+            listQueue.Add(2);
+            std::cout << "List Get(1): " << listQueue.Get(1) << std::endl;
+
+            // Queue로 사용
+            listQueue.Enqueue(3);
+            std::cout << "Queue Dequeue: " << listQueue.Dequeue() << std::endl;
+
+            ```
+
+            * 위 코드에서 `List` 와 `Queue` 인터페이스를 작성해두고 `LinkedList` 클래스가 인터페이스로부터 상속받아 구현하였다.
+            * 이렇게 하면 `LinkedList` 클래스를 `List` 와 동시에  `Queue` 로 사용할 수 있게 된다.
+            </details>
+    * **단점**:
+        * 인터페이스를 작성하는 것은 더 많은 작업을 필요로 한다.
+        * 코드가 복잡해질 수도 있다. 구현 세부사항을 알기 위해서 인터페이스로 갔다가 인터페이스를 사용하는 구체적인 구현체로 가야할 수도 있다.
+
+### 2.3.5 층이 너무 얇아질 때
+
+* 코드를 별개의 계층으로 세분화 했을 때 다음과 같은 추가 비용이 발생 할 수 있다.
+    * 클래스를 정의하거나 의존성을 새 파일로 임포트 하려고 반복적으로 사용하는 코드로 인해 코드 양이 늘어난다.
+    * 로직의 이해를 위해 파일이나 클래스를 따라갈 때 더 많은 시간이 필요하다.
+    * 인터페이스 뒤에 계층을 숨기게 되면 어떤 상황에서 어떤 구현이 사용되는지 파악하는 데 더 많은 시간이 필요하다.
+
+* 즉 계층의 규모를 잘 파악하고 너무 얇거나 두꺼운 계층을 만들지 않도록 주의해야한다.
