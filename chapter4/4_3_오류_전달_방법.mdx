@@ -157,9 +157,9 @@ def display_user(user_id: int):
 
 #### 리절트 유형을 이용한 전달
 ```rust
-fn get_user_by_id(user_id: u32) -> Result<User, Error> {
+fn get_user_name_by_id(user_id: u32) -> Result<String, Error> {
     match db.get_user_by_id(user_id) {
-        Some(user) => Ok(user),
+        Some(user) => Ok(user.name),
         None => Err(Error::UserNotFound),
     }
 }
@@ -168,8 +168,8 @@ fn get_user_by_id(user_id: u32) -> Result<User, Error> {
 #### 리절트 처리
 ```rust
 fn display_user(user_id: u32) {
-    match get_user_by_id(user_id) {
-        Ok(user) => println!("User found: {}", user.name),
+    match get_user_name_by_id(user_id) {
+        Ok(user) => println!("User found: {}", user),
         Err(e) => println!("Error: {}", e),
     }
 }
