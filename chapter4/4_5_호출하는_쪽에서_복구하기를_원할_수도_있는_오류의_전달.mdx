@@ -1,0 +1,92 @@
+---
+title: '호출하는 쪽에서 복구하기를 원할 수도 있는 오류의 전달'
+author: 'hyunwok'
+---
+
+- 여러가지 논쟁이 있는 흥미로운 주제에 대한 각각의 주장과 반론을 요약해보겠다.
+
+### 4.5.1 비검사 예외를 사용해야 한다는 주장
+- 코드 구조 개선
+    - 대부분의 오류 처리가 몇 개의 개층에서만 이뤄지기 때문에 비검사 예외를 사용하면 코드 구조를 개선할 수 있다고 주장하는 개발자들이 있다.
+    - 오류를 처리하는 로직이 코드 전체에 퍼지지 않고 별도로 몇 개의 계층만 있다는 점이 이 접근법의 핵심 장점이다.
+    
+- 개발자들이 무엇을 할 것인지에 대해서 실용적이어야 함
+    - 너무 많은 명시적 오류 전달을 접하면 예외를 포착하고도 무시한다거나, 널이 가능한 유형을 확인도 하지 않고 불가능한 유형으로 만드는 등 잘못된 일을 한다고 주장한다.
+
+    ```java
+    class TemperatureLogger { 
+        private final Thermometer thermometer;
+        ...
+        
+        void logCurrentTemperature() { 
+            dataLogger.logDataPoint(
+                Instant.now(),
+                thermometer.getTemperature());
+        }
+    }
+    
+    class DataLogger{
+        private final InMemoryDataStore dataStore;
+        ...
+
+        void logDataPoint(Instant time, Double value) { 
+            dataStore.store(new DataPoint(time.toMillis(), value));
+        }
+    }
+    ```
+    
+    - 현재는 메모리에 저장중인데 만약 디스크에 저장하기로 변경된다면 코드 또한 수정되어야 한다.
+    - store 함수가 오류를 발생시킨다고 할 때, 함수 시그니처를 추가한다면 작업의 양이 너무 많아져 오류를 숨길 수 있다.
+    
+    ```java
+    class DataLogger{
+        private final DiskDataStore dataStore;
+        ...
+
+        void logDataPoint(Instant time, Double value) { 
+            try {
+            dataStore.store(new DataPoint(time.toMillis(), value));
+            } catch (IOException e) {} // IOException 오류가 호출자에게 숨겨짐
+        }
+    }
+    ```
+
+    - 비검사 예외의 사용에 찬성하기 위해 자주 표현되는 주장 중 하나가 이 문제에 대해 실용적으로 접근해야 한다는 주장이다.
+
+### 4.5.2 명시적 기법을 사용해야 한다는 주장
+- 매끄러운 오류 처리
+    - 각 계층에서 강제적으로 예외를 처리할 필요가 없어, 상위 계층에서 사용자 친화적으로 오류를 한 번에 매끄럽게 처리할 수 있다.
+- 실수로 오류를 무시할 수 없다
+    - 반환 타입이나 검사 예외와 같이 보다 더 명시적인 오류 전달 방식을 사용한다 해도, 잘못할 수 있지만 이는 코드 검수 시 명확하게 드러나게 되기에 코드를 차단할 가능성이 커진다.
+- 개발자들이 무엇을 할 것인지에 대해서 실용적이어야 함
+    - 개발자들이 오류 처리를 너무 많이 해야 되서 잘못되게 처리한다는 주장은 비검사 예외의 사용을 반박하는 것에도 적용할 수 있다.
+    - 비검사 예외가 문서화되지 않는 경우가 많기에, 예외를 처리하는 것이 당황스러운 두더지 잡기 게임이 될 수 있다.
+
+    ```java
+    Boolean isDataFileValid(byte[] fileContents) { 
+        try {
+            DataFile.parse(fileContents); // 문서화되지 않고 비검사 예외를 여러 개 발생 시킳 수 있음
+            return true;
+        } catch (InvalidEncodingException | 
+            ParseException |
+            UnrecognizedDataKeyException e) {
+        return false;
+        }
+    }
+    ```
+
+    - 시스템이 자주 작동이 멈춘다는 보고를 접하고, 확인해보니 문서화되지 않은 비검사 예외로 인해 장애가 발생한다는 사실을 인지하게 됨
+    - 모든 비검사 예외들을 처리하기 위해 모든 종류의 예외를 나타내는 일반적인 예외로 처리하고 말기로 결정
+    
+    ```java
+    Boolean isDataFileValid(byte[] fileContents) { 
+        try {
+            DataFile.parse(fileContents); 
+            return true;
+        } catch (Exception e) { // 모든 종류의 예외 처리
+        return false;
+        }
+    }
+    ```
+
+    - 프로그래밍 오류는 이제 전혀 눈에 띄지 않게 되고, 소프트웨어는 조용하고 이상한 방식으로 실패할 수 있다. 

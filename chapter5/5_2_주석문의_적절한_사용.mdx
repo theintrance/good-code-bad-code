@@ -1,0 +1,38 @@
+---
+title: '서술형 명칭 사용'
+author: 'hyunwok'
+---
+
+- 서술적인 이름으로 잘 작성된 코드는 그 자체로 설명이 잘 되지만, 그렇지 않은 경우 코드가 하는 일에 대해 이유나 배경을 설명하는 주석문은 유용하다.
+
+### 5.2.1 중복된 주석문은 유해할 수 있다
+```java
+String generateId(String firstName, String lastName) {
+    // {이름}.{성}의 형태로 ID를 생성한다.
+    return firstName + "." lastName;
+}
+```
+- 주석문을 유지보수해야 한다는 점, 코드를 지저분하게 만드는 점 등이 있기에, 주석을 지우고 코드 그 자체로 설명하도록 하는 것이 더 좋다.
+
+### 5.2.2 주석문으로 가독성 높은 코드를 대체할 수 없다
+```java
+String generateId(String[] data) {
+    // data[0]는 유저 이름, data[1]은 성
+    // {이름}.{성}의 형태로 ID를 생성한다.
+    return firstName + "." lastName;
+}
+```
+- 주석문을 자세하게 적었지만, 코드 자체가 가독성이 높지 않기 떄문에 더 나은 접근법은 가독성이 높은 코드를 작성하는 것이다.
+```java
+String generateId(String[] data) {
+    return firstName(data) + "." + lastName(data);
+}
+
+String firstName(String[] data) {
+    return data[0];
+}
+
+String lastName(String[] data) {
+    reutrn data[1];
+}
+```
