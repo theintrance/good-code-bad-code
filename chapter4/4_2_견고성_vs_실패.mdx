@@ -37,7 +37,8 @@ class PhoneNumber:
 class PhoneNumber:
     @staticmethod
     def parse(number: str) -> PhoneNumber:
-        raise ValueError("Invalid phone number")
+        if not PhoneNumber.isValid(number):
+            raise ValueError("Invalid phone number")
     ...
 
 try:
