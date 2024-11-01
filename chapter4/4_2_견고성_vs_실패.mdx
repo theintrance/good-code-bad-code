@@ -1,0 +1,113 @@
+---
+title: 견고성 vs 실패
+author: bayernmuller
+---
+
+* 오류가 발생할 때 두 가지 중 하나를 선택해야 한다.
+    1. 실패시키고 더 높은 코드 계층에 오류를 맡기거나 전체 프로그램을 중단시킨다.
+    2. 오류를 처리하고 계속 진행한다.
+
+* 오류가 있더라도 처리를 할 수 있다면 견고하다고 볼 수 있지만, 동시에 오류가 감지되지 않는다는 의미가 될 수도 있다.
+
+### 4.2.1 신속하게 실패하라
+> Fail Fast!
+
+* 신속하게 실패하기란 가능한 한 문제에 실제 발생 시점으로부터 가까운 곳에서 오류를 나타내는 것이다.
+* 복구할 수 **있는** 오류의 경우 호출하는 쪽에서 오류를 복구할 수 있는 기회를 최대한 제공한다.
+* 복구할 수 **없는** 오류의 경우 개발자가 문제를 신속하게 파악하고 해결할 수 있는 기회를 최대한 제공한다.
+
+```python
+class PhoneNumber:
+    @staticmethod
+    def parse(number: str) -> PhoneNumber:
+        # 신속하게 실패하기
+        assert PhoneNumber.isValid(number), "Invalid phone number"
+```
+
+* 만약 `assert` 가 없고 오류가 발생했는데도 계속 진행을 하게 된다면 한참 코드가 진행되며 오류가 발생한 곳은 점점 멀어지게 되고, 디버깅이 어려워진다.
+    * 단 `assert` 는 디버깅 모드에서만 동작하기 때문에 실제 운영 환경에서는 오류를 발생시키지 않는다. 이를 주의해서 적재적소에 맞는 방법을 사용하자
+
+### 4.2.2 요란하게 실패하라
+> Fail Loudly!
+
+* 오류가 있음에도 개발자가 이를 인지하지 못할 수도 있다.
+* 이를 방지하기 위해 요란하게 실패하는 것이 좋으며 `assert` 도 좋은 방법이다.
+
+```python
+class PhoneNumber:
+    @staticmethod
+    def parse(number: str) -> PhoneNumber:
+        if not PhoneNumber.isValid(number):
+            raise ValueError("Invalid phone number")
+    ...
+
+try:
+    phone_number = PhoneNumber.parse("1234typo5678")
+except ValueError as e:
+    logger.error(e)
+    # 에러 로그만 출력하고 계속 진행...
+
+call_phone_number(phone_number) # 함수 내부에서 에러 발생
+```
+
+* 위 예시는 오류에 대한 로그만 남긴 채 계속 진행하게 되고, 디버그 포인트를 찾기 어려워진다.
+* 오류가 발생 했는지 자체도 인지하기 어렵다.
+
+### 4.2.3 복구 가능성의 범위
+
+* 일반적으로 오류가 하나 일어났다고 해서 시스템 전체가 작동을 멈추는 것은 바람직 하진 않다.
+    * 예를 들어 어떤 서버에서 특정 요청에 대해서만 오류가 발생했을 때, 서버 전체가 중단되는 것이 아닌 해당 요청만 오류를 반환하는 것이 좋다.
+* 가장 요란하게 실패하는 것은 프로그램이 멈추도록 하는 것이지만, 이는 견고성을 떨어뜨린다.
+* 발생한 예외를 잘 기록하고 오류 발생 빈도가 높을 때 개발팀이 이를 인지할 수 있게 하는 시스템을 구성하는 것도 좋다.
+
+### 4.2.4 오류를 숨기지 않음
+
+* 오류는 절대로 숨겨서는 안된다.
+* 오류는 적절히 기록되고 보고되어야 한다.
+* 아래는 오류가 숨겨지는 몇가지 예시이다.
+
+#### 기본값 반환
+```python
+def get_account_balance_usd(account_id: str) -> float:
+    user = db.get_user_by_id(account_id)
+    if user is None:
+        return 0.0
+    return user.balance_usd
+```
+
+* 위 예시는 사용자가 없는 경우 0.0을 반환하는 것으로 오류를 숨기고 있다.
+* 실제로 잔액이 0.0 인 경우와 구분할 수 없으며 신속한 실패와 요란한 실패의 원리를 위반한다.
+
+#### 널 객체 패턴
+```python
+def get_unpaid_invoices(account_id: str) -> list[Invoice]:
+    user = db.get_user_by_id(account_id)
+    if user is None:
+        return []
+    return list(filter(lambda invoice: not invoice.is_paid, user.invoices))
+```
+
+* 위 예시는 사용자를 불러오는 데에 실패했을 경우 빈 리스트를 반환하는 것으로 오류를 숨기고 있다.
+
+#### 아무것도 하지 않음
+```python
+def add_to_user_balance_usd(account_id: str, amount: float) -> None:
+    user = db.get_user_by_id(account_id)
+    if user is None:
+        return
+    user.balance_usd += amount
+```
+
+* 위 예시는 사용자를 불러오는 데에 실패했을 경우 아무것도 하지 않는 것으로 오류를 숨기고 있다.
+* 함수를 호출하는 쪽에서는 오류가 없으니 `amount` 만큼 잔액이 증가했다고 가정하게 되고 버그가 발생할 가능성이 높다.
+
+```python
+def email_invoice(email_address: str, invoice: Invoice) -> None:
+    try:
+        send_email(email_address, str(invoice))
+    except Exception as e:
+        logger.error(f"Failed to email invoice: {e}")
+```
+
+* 위 경우에도 에러 로그를 남기고는 있으나 여전히 호출하는 쪽에서는 email 이 잘 발송되었다고 가정하게 된다.
+* 요란한 실패의 원리를 위반한다.
