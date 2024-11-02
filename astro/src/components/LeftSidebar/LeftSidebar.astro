@@ -25,11 +25,8 @@ const sidebar = SIDEBAR[langCode]
               {children.map((child) => {
                 const url = Astro.site?.pathname + child.link
                 const decodedCurrentPageMatch = decodeURIComponent(currentPageMatch)
-                console.log('decodedCurrentPageMatch', decodedCurrentPageMatch)
                 const decodedChildLink = decodeURIComponent(child.link)
-                console.log('decodedChildLink', decodedChildLink) 
                 const isCurrentPage = decodedCurrentPageMatch.includes(decodedChildLink)
-                console.log('isCurrentPage', isCurrentPage)
                 return (
                   <li class="nav-link">
                     <a
