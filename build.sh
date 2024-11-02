@@ -34,9 +34,13 @@ for chapter in $chapters; do
     for content in $contents; do
         content=${content/.mdx/}
         content_name=$(basename "${content/ko\//}")
-        # content name is {number}_{subnumber}_{title1}_{title2}_..._{titleN}. so remove {number}_{subnumber}_
-        content_name=${content_name//[0-9]_[0-9]_/}
+        # content name is {number}_{subnumber}_{title1}_{title2}_..._{titleN}.
+        # so replace {number}_{subnumber}_ with {number}.{subnumber}.
+        content_name=$(echo "$content_name" | sed -E 's/([0-9])_([0-9])_/\1.\2. /')
         content_name=${content_name//_/ }
+
+        # remove "./" from content
+        content=${content/.\//}
     
         echo "      { text: '$content_name', link: '/ko/$content' }," | tee -a $CONSTS_PATH
     done
