@@ -1,0 +1,131 @@
+---
+title: 함수 호출도 가독성이 있어야 한다.
+author: bayernmuller
+---
+
+* 함수의 이름이 잘 명명되어 있어도 그 함수의 인수가 무엇을 위한 것이고 무슨 역할을 하는지 명확하지 않을 수 있다.
+
+### 5.6.1 매개변수는 이해하기 어려울 수 있다.
+
+```java
+sendMessage("FC BAYERN IS THE BEST TEAM IN THE WORLD", 1, true);
+```
+
+* `sendMessage` 함수의 첫번째 인자는 메세지 내용이라는 것을 알겠지만 `1` 과 `true` 는 무슨 의미인지 이해하기 어렵다.
+
+```java
+void sendMessage(String message, int priority, boolean allowRetry) {
+    ...
+}
+```
+
+* 이렇게 함수 시그니쳐를 살펴보면 파라미터의 의미를 파악할 수 있다.
+* 하지만 만약 함수 정의가 다른 파일에 있거나 수백줄 떨어져있다면 상당히 힘든 작업일 수 있다.
+
+### 5.6.2 해결책: 명명된 매개변수 사용
+
+* 최근에 나온 몇 언어에서는 명명된 매개변수를 지원한다.
+* 이를 사용하면 함수 호출 시 매개변수에 이름을 붙여 인수의 의미를 명확하게 나타낼 수 있다.
+
+```python
+# Python
+send_message(
+    message="FC BAYERN IS THE BEST TEAM IN THE WORLD", 
+    priority=1, 
+    allow_retry=True
+)
+```
+
+```java
+// Java
+sendMessage(
+    message="FC BAYERN IS THE BEST TEAM IN THE WORLD", 
+    priority=1, 
+    allowRetry=true
+);
+```
+
+### 5.6.3 해결책: 서술적 유형 사용
+
+* 명명된 매개변수 지원 여부와 상관없이 함수를 정의할 떄 서술적인 타입을 사용하는게 좋다.
+
+```java
+class MessagePriority {
+    MessagePriority(Int priority) {
+        ...
+    }
+}
+
+enum RetryPolicy {
+    ALLOW_RETRY,
+    DISALLOW_RETRY
+}
+
+void sendMessage(
+    String message,
+    MessagePriority priority, 
+    RetryPolicy retryPolicy) {
+    ...
+}
+
+sendMessage(
+    "Real Madrid buy Referees for titles.",
+    MessagePriority(1),
+    RetryPolicy.ALLOW_RETRY
+);
+```
+
+* 이렇게 하면 함수 호출 시 인수의 의미를 명확하게 나타낼 수 있다.
+
+### 5.6.4 떄로는 훌륭한 해결책이 없다.
+
+```java
+class Rectangle {
+    Rectangle(Int top, Int left, Int bottom, Int right) {
+        ...
+    }
+}
+
+Rectangle box = new Rectangle(0, 0, 100, 100);
+```
+
+* 클래스 인스턴스를 생성할 때, 각 인수의 의미를 명확하게 나타내기 어렵다.
+* 어떤 프레임워크에서는 centerX, centerY, width, height 와 같이 속성을 저장하기도 하여 혼동의 여지가 있다.
+
+```java
+Rectangle box = new Rectangle(
+    /* top */ 0,
+    /* left */ 0,
+    /* bottom */ 100,
+    /* right */ 100
+);
+```
+
+* 이렇게 inline 주석을 사용할 수도 있지만 객체를 생성할 때 항상 그럴수도 없는 노릇이다.
+* 값이 바뀌었을 때 주석도 바뀌어야하는데, 이를 놓치기도 쉽다.
+
+##### Jayden: 함수 쪼개기도 방법인 것 같음
+
+```c++
+class MessageService
+{
+// Open API
+public:
+    inline void sendMessageWithRetry(std::string message)
+    {
+        sendMessage(message, true);
+    }
+
+    inline void sendMessageWithoutRetry(std::string message)
+    {
+        sendMessage(message, false);
+    }
+
+// Private Code
+private:
+    void sendMessage(std::string message, bool allowRetry) {
+        ...
+    }
+}
+```
+* 매개변수가 적고 함수 내부가 단순하다면 이런 방법도 괜찮다고 생각함
