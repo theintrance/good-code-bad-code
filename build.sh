@@ -37,6 +37,9 @@ for chapter in $chapters; do
         # content name is {number}_{subnumber}_{title1}_{title2}_..._{titleN}. so remove {number}_{subnumber}_
         content_name=${content_name//[0-9]_[0-9]_/}
         content_name=${content_name//_/ }
+
+        # remove "./" from content
+        content=${content/.\//}
     
         echo "      { text: '$content_name', link: '/ko/$content' }," | tee -a $CONSTS_PATH
     done

@@ -24,13 +24,17 @@ const sidebar = SIDEBAR[langCode]
             <ul>
               {children.map((child) => {
                 const url = Astro.site?.pathname + child.link
+                const decodedCurrentPageMatch = decodeURIComponent(currentPageMatch)
+                console.log('decodedCurrentPageMatch', decodedCurrentPageMatch)
+                const decodedChildLink = decodeURIComponent(child.link)
+                console.log('decodedChildLink', decodedChildLink) 
+                const isCurrentPage = decodedCurrentPageMatch.includes(decodedChildLink)
+                console.log('isCurrentPage', isCurrentPage)
                 return (
                   <li class="nav-link">
                     <a
                       href={url}
-                      aria-current={
-                        currentPageMatch === child.link ? 'page' : false
-                      }
+                      aria-current={isCurrentPage ? 'page' : false}
                     >
                       {child.text}
                     </a>
