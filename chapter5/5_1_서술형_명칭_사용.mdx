@@ -1,0 +1,65 @@
+---
+title: '서술형 명칭 사용'
+author: 'hyunwok'
+---
+
+- 토스터를 보고 무언가를 굽는 기계라고 알 수 있는 것처럼, 코드 작성 시 이름이 클래스, 함수, 변수 등에도 동일하게 적용된다.
+
+### 5.1.1 서술적이지 않은 이름은 코드를 읽기 어렵게 만든다
+- 극단적인 에로 파악하기의 어려움을 경험해보자
+```java
+class T {
+    Set<String> pns = new Set();
+    Int s = 0;
+    ...
+    Boolean f(String n) {
+        return pns.contains(n);
+    }
+
+    Int getS() {
+        return s;
+    }
+}
+
+Int? s(List<T> ts, String n) { 
+    for (T t in ts) {
+        if (t.f(n)) { 
+            return t.getS();
+        }
+    }
+    return null;
+}
+```
+
+### 5.1.2 주석문으로 서술적인 이름을 대체할 수 없다
+- 이를 개선하기 위한 방법으로는 주석문과 문서를 추가하는 것이다.
+- 허나 많은 문제가 있다
+    - 코드가 훨씬 더 복잡해보이고, 문서 + 주석문 또한 유지보수해야한다.
+    - 코드를 이해하기 위해 파일을 수업이 스크롤해야한다.
+    - 코드 내부를 자세하게 보지 않는 이상, 함수 호출이 무엇을 하는지 혹은 반환하는지 알기 어렵다
+
+### 5.1.3 해결책: 서술적인 이름 짓기
+```java 
+class Team { 
+    Set<String> playerNames = new Set();
+    Int score = 0;
+
+    Boolean containsPlayer(String playerName) {
+        return playerNames.contains(playerName);
+    }
+
+    Int getScore() {
+        return score;
+    }
+}
+
+Int? getTeamScoreForPlayer(List<Team> teams, String playerName) { 
+    for (Team team in teams) { 
+        if (team.containsPlayer(playerName)) { 
+            return team.getScore();
+        }
+    }
+    return null;
+}
+```
+- 이름을 서술적으로 변경하여 가독성이 크게 향상되고 이해하기 쉬워졌다.

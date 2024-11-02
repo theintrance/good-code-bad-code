@@ -1,0 +1,28 @@
+---
+title: '컴파일러 경고를 무시하지 말라'
+author: 'hyunwok'
+---
+
+- 컴파일러 경고는 어떤 식으로든 코드가 의심스러우면 표시를 하는데, 이에 주의를 기울이면 코드베이스에 병합되기 훨씬 전에 오류를 발견하고 제거할 수 있다.
+```java
+class UserInfo {
+    private final String realName;
+    private final String displayName;   
+
+    UserInfo(String realName, Stirng displayName) {
+        this.realName = realName
+        this.displayName = displayName
+    }
+
+    String getRealName() {
+        return realName;
+    }
+
+    String getDisplayName() { 
+        return realName;
+    }
+}
+```
+- 이 상황에서는 displayName이 사용되지 않는다는 경고가 나올 것이고, 이에 귀 기울인다면 제거할 수 있다.
+- 또한 경고를 오류로 여기고 컴파일되지 않도록 설정할 수 있다.
+- 만약 실제로 걱정할 것이 아닌 경우에는 “@Suppress(“unused”)“와 같은 방법으로 경고를 억제할 수 있다.
