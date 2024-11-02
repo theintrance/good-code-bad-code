@@ -1,0 +1,97 @@
+---
+title: '매직값을 반환하지 말아야 한다'
+author: 'hyunwok'
+---
+
+- 매직값의 일반적인 예는 값이 없거나 오류가 발생했음을 나타내기 위해 -1을 반환하는 것이다.
+- 매직값은 함수의 정상적인 반환 유형에 들어맞기 때문에 이 값이 갖는 특별한 의미를 인지하지 못한다.
+- 이에 대해 적극적으로 경계하지 않으면 정상적인 반환값으로 오인하기 쉽다.
+
+### 6.1.1 매직값은 버그를 유발할 수 있다
+- 과거에는 널 또는 옵셔널 타입을 반환하는 것이 가능하지 않거나, 실용적이지 않기 때문에 어느정도 합리적인 이유가 있었다.
+- 그러나 일반적으로 매직값을 반환하면 예측을 벗어날 위험이 있으니 사용하지 않는 것이 가장 바람직하다.
+
+```java
+class User {
+    private final Int? age;
+    ...
+    
+    // 나이가 주어지지 않은 경우에는 -1을 반환한다.
+    Int getAge() {
+        if (age == null) { 
+            return -1; // 나이 없으면 -1
+        }
+        return age;
+    }
+}
+
+Double? getMeanAge(List<User> users) {
+    if (users.isEmpty()) {
+        return null;
+    }
+    Double sumOfAges = 0.0;
+    for (User user : users) {
+        sumOfAges += user.getAge().toDouble(); // 나이가 없다면 원하는 결과가 나오지 않음
+    }
+    return sumOfAges / users.size().toDouble();
+}
+```
+
+### 6.1.2 해결책: 널, 옵셔널 또는 오류를 반환하라
+- 매직값을 반환하는 함수는 호출하는 쪽에서 함수 계약의 세부 조항을 알아야 한다는 점을 3장에서 보았다.
+- 허나 확인하지 않거나, 잊어버릴 수 있기 때문에 이를 위한 쉬운 방법 중 하나는 널값 혹은 옵셔널 값을 반환하는 것이다.
+- 널값 혹은 옵셔널 값을 반환 후, 그에 충족하지 않는다면 컴파일 에러를 일으킬 것이다.
+- 이 방법의 단점은 값이 없는 이유를 명시적으로 전달하지 않는다는 점이다.
+    - 만약 상황을 구별하는 것이 필요하다면 4장에서 설명한 오류 전달 기법을 사용하는 것을 고려해야 한다.
+
+### 6.1.3 때때로 매직값이 우연히 발생할 수 있다.
+- 아래 코드를 적었을 때 자기만의 이유가 있기에 작성을 했을텐데, 그 이유가 상황을 가정을 하고 작성했다는 문제점이 있다.
+    - 상황은 변경될 수 있고, 그 경우 코드는 예측을 벗어나는 동작을 할 것이다.
+
+```java
+Int minValue(List<Int> values) {
+    Int minValue = Int.MAX_VALUE;
+    for (Int value in values) {
+        minValue = Math.min(value, minValue);
+    }
+    return minValue;
+}
+```
+
+- 추가적인 코드를 살펴보면, 몇가지 문제점이 존재한다.
+    - Int.MAX_VALUE는 사용 중인 프로그래밍 언어에 따라 달라지는 경우가 많다.
+    - 먼역 minValue가 데이터베이스에 저장하는 경우, 그 값을 읽는 다른 시스템에 많은 혼란과 야기할 수 있다
+```java
+    class GameLevel {
+    ...
+    List<Int> getAllScores() { ... } // 기록된 점수가 없으면 빈 리스트 반환
+}
+
+GameLevel? getEasiestLevel(List<GameLevel> levels) {
+    GameLevel? easiestLevel = null;
+    Int? highestMinScore = null;
+    for (GameLevel level in levels) {
+        Int minScore = minValue(level.getAllScores()); // 점수 없으면 MAX_VALUE 반환
+        if (highestMinScore == null || minScore > highestMinScore) {
+            easiestLevel = level;
+            highestMinScore = minScore;
+        }
+    }
+    return easiestLevel;
+}
+```
+
+- 따라서 호출하는 쪽에 추가적인 부담을 주긴 하지만, 널값이나 빈 옵셔널을 반환하는 게 더 낫다.
+
+```java 
+Int? minValue(List<Int> values) {
+    if (values.isEmpty()) {
+        return null;
+    }
+    Int minValue = Int.MAX_VALUE;
+    for (Int value in values) {
+        minValue = Math.min(value, minValue);
+    }
+    return minValue;
+}
+```
