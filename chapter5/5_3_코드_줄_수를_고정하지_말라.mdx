@@ -1,0 +1,46 @@
+---
+title: 코드 줄 수를 고정하지 말라
+author: bayernmuller
+---
+
+* 코드베이스의 줄 수는 적다고 무조건 좋은 것은 아니다.
+* 줄 수를 줄여서 이해하기 어렵고 오해하기 쉬운 코드를 짜선 안 된다.
+
+#### 5.3.1 간결하지만 이해하기 어려운 코드는 피해라
+
+```c++
+bool is_valid_id(const std::uint16_t id) {
+    return count_set_bits(id & 0x7FFF) % 2 == ((id & 0x8000) >> 15);
+}   
+```
+
+* 이 코드는 패리티 비트를 검사하는 코드다.
+* 한 줄 밖에 안되는 코드지만 이해하기 어렵다.
+    * 다른 개발자는 이 한줄의 코드에서 모든 세부사항과 가정을 도출하기 위해 노력을 기울여야 한다.
+
+#### 5.3.2 해결책: 더 많은 줄이 필요하더라도 가독성 높은 코드를 작성하라
+
+```c++
+constexpr std::uint16_t PARITY_BIT_INDEX = 15;
+constexpr std::uint16_t PARITY_BIT_MASK = 1 << PARITY_BIT_INDEX;
+constexpr std::uint16_t VALUE_BITS_MASK = ~PARITY_BIT_MASK;
+
+bool is_valid_id(const std::uint16_t id) {
+    return extract_encoded_parity(id) == calculate_parity(get_id_value(id));
+}
+
+std::uint16_t extract_encoded_parity(const std::uint16_t id) {
+    return (id & PARITY_BIT_MASK) >> PARITY_BIT_INDEX;
+}
+
+std::uint16_t get_id_value(const std::uint16_t id) {
+    return id & VALUE_BITS_MASK;
+}
+
+std::uint16_t calculate_parity(const std::uint16_t value) {
+    return count_set_bits(value) % 2;
+}
+```
+
+* 코드가 길어져도 재사용성이 올라갔고 다른 개발자에게 효과적으로 의미를 전달하기 위해서라면 길어진 코드도 문제가 되지 않는다.
+
