@@ -145,27 +145,21 @@ class CoffeeMugImpl implements CoffeeMug {
         this.height = height;
     }
 
-    @Override
-    public Double getDiameter() { return diameter; }
+    override Double getDiameter() { return diameter; }
 
-    @Override
-    public Double getHeight() { return height; }
+    override Double getHeight() { return height; }
 
-    @Override
-    public void reportMugBroken() {
+    override void reportMugBroken() {
         // 실제 로직 구현
     }
 }
 
 class NullCoffeeMug implements CoffeeMug {
-    @Override
-    public Double getDiameter() { return 0.0; }
+    override Double getDiameter() { return 0.0; }
 
-    @Override
-    public Double getHeight() { return 0.0; }
+    override Double getHeight() { return 0.0; }
 
-    @Override
-    public void reportMugBroken() {
+    override void reportMugBroken() {
         // 아무 일도 하지 않음
     }
 }
