@@ -1,0 +1,47 @@
+---
+title: 일관된 코딩 스타일을 고수하라
+author: bayernmuller
+---
+
+### 5.4.1 일관적이지 않은 코딩 스타일은 혼돌을 일으킬 수 있다.
+
+* 일반적으로 Class 이름은 PascalCase이고, 필드는 camelCase를 사용한다.
+
+```python
+class GroupChat:
+    ...
+    def end(self):
+        connectionManager.terminate_all()
+    ...
+
+class connectionManager:
+    @staticmethod
+    def terminate_all():
+        ...
+```
+
+* 여기서 `GroupChat` 의 `end()` 메서드에서는 `connectionManager` 를 필드로 착각하고, 현재 커넥션을 종료하는 것으로 생각하며 코드를 작성했다.
+* 하지만 `connectionManager` 는 클래스였고 `terminate_all()` 메서드는 정적 메서드였다.
+* 현재 그룹이 아닌 서버의 모든 커넥션이 terminate되었다.
+* 이처럼 일관된 코딩 스타일을 지키지 않으면 오해를 일으키고 오류를 발생시킬 수 있다.
+
+### 5.4.2 해결책: 스타일 가이드를 채택하고 따르라
+
+```python
+class ConnectionManager:
+    @staticmethod
+    def terminate_all():
+        ...
+``` 
+
+* 이처럼 스타일 가이드를 채택하고 따르면 오해를 줄일 수 있다.
+* 구글에서는 여러 언어의 스타일 가이드를 제공한다.
+    * https://google.github.io/styleguide/
+
+* **Linter**
+    * 스타일 코드를 따르지 않은 코드를 찾아 알려주는 도구
+        * [pylint](https://pypi.org/project/pylint/)
+        * [cpplint](https://github.com/cpplint/cpplint)
+        * [eslint](https://eslint.org/)
+        ...
+

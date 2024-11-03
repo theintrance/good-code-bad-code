@@ -1,0 +1,108 @@
+---
+title: 깊이 중첩된 코드를 피하라
+author: bayernmuller
+---
+
+* 일반적으로 코드는 중첩되는 불록으로 구성된다.
+
+```c++
+for (int i = 0; i < 10; i++) {
+    for (int j = 0; j < 10; j++) {
+        if (condition) {
+            std::cout << "FC Bayern The Best" << std::endl;
+        }
+    }
+}
+```
+
+### 5.5.1 깊이 중첩된 코드는 읽기 어려울 수 있다.
+
+```java
+Address? getOnwerAddress(Vehicle vehicle) {
+    if (vehicle.hasBeenScrapped()) {
+        return SCRAPYARD_ADDRESS;
+    } else {
+        Purchase? mostRecentPurchase = 
+            vehicle.getMostRecentPurchase();
+        if (mostRecentPurchase != null) {
+            return SHOWROOM_ADDRESS;
+        } else {
+            Buyer? buyer = vehicle.getBuyer();
+            if (buyer != null) {
+                return buyer.getAddress();
+            }
+        }
+    }
+    return null;
+}
+```
+
+* 중첩이 많아 언제 어떤 값이 반환되는지 쉽게 파악하기 어렵다.
+
+### 5.5.2 해결책: 중첩을 최소화 하기 위한 구조 변경
+
+```java
+Address? getOnwerAddress(Vehicle vehicle) {
+    if (vehicle.hasBeenScrapped()) {
+        return SCRAPYARD_ADDRESS;
+    }
+    Purchase? mostRecentPurchase = 
+        vehicle.getMostRecentPurchase();
+    if (mostRecentPurchase != null) {
+        return SHOWROOM_ADDRESS;
+    }
+    Buyer? buyer = vehicle.getBuyer();
+    if (buyer != null) {
+        return buyer.getAddress();
+    }
+    return null;
+}
+```
+
+* 중첩이 줄어들어 언제 어떤 값이 반환되는지 쉽게 파악할 수 있어졌다.
+
+### 5.5.3 중첩은 너무 많은 일을 한 결과물이다.
+
+* 너무 많은 일을 하기 때문에 중첩이 생기는 경우도 있을 수 있다.
+
+```java
+SendConfirmation? sendOwnerALetter(Vehicle vehicle, Letter letter) {
+    Address? ownerAddress = null;
+    if (vehicle.hasBeenScrapped()) {
+        ownerAddress = SCRAPYARD_ADDRESS;
+    } else {
+        Purchase? mostRecentPurchase = 
+            vehicle.getMostRecentPurchase();
+        if (mostRecentPurchase != null) {
+            ownerAddress = SHOWROOM_ADDRESS;
+        } else {
+            Buyer? buyer = vehicle.getBuyer();
+            if (buyer != null) {
+                ownerAddress = buyer.getAddress();
+            }
+        }
+    }
+    if (ownerAddress == null) {
+        return null;
+    }
+    return sendLetterToAddress(ownerAddress, letter);
+}
+```
+
+* 함수가 너무 많은 일을 하고있으며 함수 하나에 주소를 찾는 로직과 편지를 보내는 로직이 섞여있다.
+
+```java
+SendConfirmation? sendOwnerALetter(Vehicle vehicle, Letter letter) {
+    Address? ownerAddress = getOnwerAddress(vehicle);
+    if (ownerAddress == null) {
+        return null;
+    }
+    return sendLetterToAddress(ownerAddress, letter);
+}
+```
+
+* 함수가 한 가지 일만 하게 되었고 중첩도 줄어들었다.
+
+##### Jayden: 이것도 읽어보자
+* [Return Early Pattern](https://medium.com/swlh/return-early-pattern-3d18a41bba8)
+* [Callback Hell](https://medium.com/@raihan_tazdid/callback-hell-in-javascript-all-you-need-to-know-296f7f5d3c1)
