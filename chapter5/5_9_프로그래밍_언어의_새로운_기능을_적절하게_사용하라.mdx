@@ -1,0 +1,38 @@
+---
+title: '프로그래밍 언어의 새로운 기능을 적절하게 사용하라'
+author: 'hyunwok'
+---
+
+- 새로운 기능에 대해 써보고 싶을 때, 그 기능이 정말로 그 일에 가장 적합한 도구인지 솔직하게 생각해봐야 한다.
+
+### 5.9.1 새 기능은 코드를 개선할 수 있다.
+- 자바 8이 스트림을 도입했을 때 훨씬 간결한 함수형 스타일의 코드를 작성 가능했기에, 많은 개발자가 흥분했다. 
+
+```java
+List<String> getNonEmptyStrings(List<String> strings) {
+    List<String> nonEmptyStrings = new ArrayList<>();
+    for (String str : strings) {
+        if (!str.isEmpty()) {
+            nonEmptyStrings.add(str);
+        }
+    }
+    return nonEmptyStrings;
+}
+```
+- 이런 류의 코드가?
+```java
+List<String> getNonEmptyStrings(List<String> strings) {
+    return strings
+        .stream()
+        .filter(str -> !str.isEmpty())
+        .collect(toList());
+}
+```
+
+### 5.9.2 불분명한 기능은 혼동을 일으킬 수 있다
+- 아무리 새 기능이 확실한 이점을 가지고 있다고 하더라도, 그 기능에 대해 익숙하지 않다면 오히려 혼란을 초래할 수 있다.
+    - 코드 품질을 개선한다면 언어가 제공하는 기능을 사용하는 것이 바람직하나, 차라리 사용하지 않는 것이 좋을 때도 있다.
+
+### 5.9.3 작업에 가장 적합한 도구를 사용하라
+- 이미 좋은 방법이 있는데 새 기능을 사용하기 위해서 억지로 사용한다면 오히려 가독성과 효율성이 떨어질 수 있다.
+- 해당 기능이 단지 새로워서가 아니라 작업에 적합한 도구이기 떄문에 사용한다는 점을 분명히 해야 한다.

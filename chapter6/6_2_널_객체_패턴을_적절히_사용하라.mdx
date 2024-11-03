@@ -1,0 +1,168 @@
+---
+title: '널 객체 패턴을 적절히 사용하라'
+author: 'hyunwok'
+---
+
+- 널 객체 패턴을 사용하는 이유는 널값을 반환하는 대신 유효한 값이 반환되어 그 이후에 실행되는 로직에서 널값을 인해 시스템에 의해 피해가 가지 않도록 하기 위함이다.
+- 널 객체 패턴 또한 유용하긴 하지만, 부적절하게 사용된다면 예측을 벗어나는 동작이나 발견하기 어려운 미묘한 버그가 발생할 수 있다. 
+
+### 6.2.1 빈 컬렉션을 반환하면 코드가 개선될 수 있다
+
+```java
+Set<String>? getClassNames(HtmlElement element) {
+    String? attribute = element.getAttribute("class");
+    if (attribute == null) {
+        return null; // 해당 요소에 class 속성이 없으면 널값을 반환
+    }
+    return new Set(attribute.split(" "));
+}
+
+Boolean isElementHighlighted(HtmlElement element) {
+    Set<String>? classNames = getClassNames(element);
+    if (classNames == null) { // 사용 전 널값 확인
+        return false;
+    }
+    return classNames.contains("highlighted");
+}
+```
+
+- 널값을 제공함으로써 빈 배열과의 의미를 다르게 할 수 있긴하지만 두 가지 경우를 구분하는 것이 별 의미가 없는 상황이다.
+- 이런 상황에는 널값보단 빈 배열을 넘김으로써 코드를 개선할 수 있다.
+
+```java
+Set<String> getClassNames(HtmlElement element) {
+    String? attribute = element.getAttribute("class");
+    if (attribute == null) {
+        return new Set<>();
+    }
+    return new Set(attribute.split(" "));
+}
+
+Boolean isElementHighlighted(HtmlElement element) {
+    return getClassNames(element).contains("highlighted");
+}
+```
+
+### 6.2.2 빈 문자열을 반환하는 것도 떄로는 문제가 될 수 있다
+- 널 대신 빈 컬렉션을 반환함으로써 코드 품질을 향상 시킬 수 있는 방법이 문자열에도 적용되어야 한다고 일부 개발자들이 주장한다.
+- 문자열을 사용하는 상황에 따라 적절할 수도, 그렇지 않을 수도 있다.
+
+#### 문자들의 모음으로서의 문자열
+- 단지 문자를 모아 놓은 것에 불과하고, 별다른 의미가 없다면 널값 대신 빈값을 반환해도 괜찮다.
+
+```java
+class UserFeedback {
+    private String? additionalComments;
+    ...
+    
+    String getAdditionalComments() {
+        if (additionalComments == null) {
+            return "";
+        }
+        return additionalComments;
+    }
+}
+```
+
+#### ID로서의 문자열
+- ID는 추후에 실행할 논리에 영향을 미칠 수 있기에 **없을 수 있음**을 함수를 호출하는 쪽에서 명시적으로 인식하도록 하는 것이 중요하다.
+
+```java
+class Payment {
+    private final String? cardTransactionId;
+    ...
+    
+    String getCardTransactionId() {
+        if (cardTransactionId == null) {
+            return "";
+        }
+        return cardTransactionId;
+    }
+}
+```
+- 값이 없는 건지, 값이 빈값인건지 인식에 오류가 생김
+```java
+class Payment {
+    private final String? cardTransactionId;
+    ...
+    
+    String? getCardTransactionId() {
+        return cardTransactionId;
+    }
+}
+```
+
+### 6.2.3 더 복잡한 널 객체는 예측을 벗어날 수 있다
+- 핸드폰이 있다고 해서 매장에 가 핸드폰을 샀는데, 박스안에 핸드폰이 없다면 황당스러울 것이다.
+    - 널 객체를 잘못 사용하면 이런 상황이 벌어질 수 있다.
+
+```java
+class CoffeeMug {
+    ...
+    CoffeeMug(Double diameter, Double height) { ... }
+
+    Double getDiameter() { ... }
+    Double getHeight() { ... }
+}
+
+class CoffeeMugInventory {
+    private final List<CoffeeMug> mugs;
+    ...
+    
+    CoffeeMug getRandomMug() {
+        if (mugs.isEmpty()) {
+            return new CoffeeMug(diameter: 0.0, height: 0.0);
+        }
+        return mugs[Math.randomInt(0, mugs.size())];
+    }
+}
+```
+
+- 어떤 경우에는 재고가 없을 때 0 사이즈의 머그컵을 반환하는 것이 요구 사항을 만족하는 것일 수 있지만, 또 다른 경우에는 심각한 버그가 아무도 모르게 발생할 수 있다. 
+```java
+CoffeeMug? getRandomMug() {
+       if (mugs.isEmpty()) {
+        return null;
+    }
+    return mugs[Math.randomInt(0, mugs.size())];
+}
+```
+
+### 6.2.4 널 객체 구현은 예상을 벗어나는 동작을 유발할 수 있다
+```java
+interface CoffeeMug {
+    Double getDiameter();
+    Double getHeight();
+    void reportMugBroken();
+}
+
+class CoffeeMugImpl implements CoffeeMug {
+    private Double diameter;
+    private Double height;
+
+    CoffeeMugImpl(Double diameter, Double height) {
+        this.diameter = diameter;
+        this.height = height;
+    }
+
+    override Double getDiameter() { return diameter; }
+
+    override Double getHeight() { return height; }
+
+    override void reportMugBroken() {
+        // 실제 로직 구현
+    }
+}
+
+class NullCoffeeMug implements CoffeeMug {
+    override Double getDiameter() { return 0.0; }
+
+    override Double getHeight() { return 0.0; }
+
+    override void reportMugBroken() {
+        // 아무 일도 하지 않음
+    }
+}
+```
+- 널 객체를 가졌는지 확인할 수 있다는 개선점이 있긴하지만, 인스턴스를 확인하는 과정이 오히려 널을 확인하는 것보다 더 번거로울 수 있다.
+- 널 안정성과 옵셔널을 사용하는 것이 인기를 얻음에 따라 "값이 없음"을 훨씬 쉽고 안전하게 나타낼 수 있게 되어, 널 객체 패턴의 사용을 지지하는 기존의 주장은 설득력이 떨어졌다.

@@ -1,0 +1,147 @@
+---
+title: '익명 함수를 적절하게 사용하라'
+author: 'hyunwok'
+---
+
+- 익명 함수는 이름이 없는 함수이며, 일반적으로 코드 내의 필요한 지점에서 안라인으로 정의된다.
+
+```java
+class List<T> { 
+    ...
+    List<T> filter(Function<T, Boolean> retainIf) { // 함수를 인자로 받음
+
+    }
+}
+
+List<Feedback> getUsefulFeedback(List<Feedback> allFeedback) { 
+    return allFeedback.filter(feedback -> !feedback.getComment().isEmpty()); 
+    // 인라인 익명 함수로 Lister.filter() 호출
+}
+```
+
+- 간단하고 자명한 것에 익명 함수를 사용하면 코드의 가독성을 높여 주지만, 복잡하거나 자명하지 않은 것, 혹은 재사용하는 것에 사용하면 문제가 될 수 있다.
+
+### 5.8.1 익명 함수는 간단한 로직에 좋다.
+- 위 코드애서 익명 함수로 표현하려는 논리는 단순하고 자명하기 떄문에 익명 함수를 사용하는 것이 괜찮다.
+- 또 다른 방법으로는 피드백에 코멘트가 있는지 확인하는 명명 함수를 정의하는 것이다.
+
+```java 
+List<Feedback> getUsefulFeedback(List<Feedback> allFeedback) { 
+    return allFeedback.filter(hasNonEmptyComment); // 명명 함수를 인수로 사용
+}
+
+private Boolean hasNonEmptyComment(Feedback feedback) {  // 명명 함수
+    return !feedback.getComment().isEmpty();
+}
+```
+
+- 명명 함수를 정의하려면 보일러 플레이트 코드가 많이 필요하며, 개발자에 따라 가독성이 떨어진다고 생각할 수 있다.
+    - 상황에 따라 재사용성 관점에서 명명 함수가 더 유용할 수 있다.
+
+### 5.8.2. 익명 함수는 가독성이 떨어질 수 있다. 
+- 익명 함수는 간결하게 요약해주기 때문에 가독성이 매우 유용하지만, 어떤 정보도 제공하지 않기에 내용이 자명하지 않다면 오히려 가독성이 떨어질 수 있다.
+
+```java
+List<UInt16> getValidIds(List<UInt16> ids) { 
+    return ids
+            .filter(id -> id != 0)
+            .filter(id -> countSetBits(id & 0x7FFF) % 2 == (id & 0x8000) >> 15);
+    // 패리티 비트를 확인하는 익명 함수
+}
+```
+
+### 5.8.3 해결책: 대신 명명 함수를 사용하라 
+- 위 코드에서 두 가지 개념적 조건만 인식하면 된다.
+    - 0이 아니다.
+    - 패리티 비트가 정확하다.
+- 복잡한 논리는 명명 함수를 쓰는 것이 이점이 더 많다.
+
+```java
+List<UInt16> getValidIds(List<UInt16> ids) { 
+    return ids
+        .filter(id -> id != 0)
+        .filter(isParityBitCorrect);
+}
+
+private Boolean isParityBitCorrect(UInt16 id) { 
+    ...
+}
+```
+
+### 5.8.4 익명 함수가 길면 문제가 될 수 있다
+- 개발자들은 함수형 스타일의 프로그래밍과 인라인 익명 함수를 선호하는 경향이 있지만, 이는 꼭 인라인 익명 함수를 사용해야 함을 의미하는 것은 아니다. 
+- 함수는 읽기 쉽고 재사용 가능하며 간결하게 작성하는 것이 중요한데, 너무 많은 논리와 인라인 함수를 한꺼번에 사용하면 오히려 코드의 가독성이 떨어질 수 있다.
+- 그럴 때는 코드를 더 작은 명명 함수로 나누면 가독성이 더 좋아질 것이다.
+
+```java
+void displayFeedback(List<Feedback> allFeedback) {
+    ui.getFeedbackWidget().setItems(
+        buildFeedbackListItems(allFeedback));
+}
+
+private List<ListItem> buildFeedbackListItems(
+    List<Feedback> allFeedback) {
+    return allFeedback.map(feedback ->
+        new ListItem(
+            title: new TextBox(
+                text: feedback.getTitle(),
+                options: new TextOptions(weight: TextWeight.BOLD),
+            ),
+            body: new Column(
+                children: [
+                    new TextBox(
+                        text: feedback.getComment(),
+                        border: new Border(style: BorderStyle.DASHED),
+                    ),
+                    new Row(
+                        children: feedback.getCategories().map(category ->
+                            new TextBox(
+                                text: category.getLabel(),
+                                options: new TextOptions(style: TextStyle.ITALIC),
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    );
+}
+```
+
+### 5.8.5 해결책: 긴 익명 함수를 여러 개의 명명 함수로 나누라 
+- 코드는 길어졌지만 이해하기 더 쉽다.
+- 익명 함수가 길어지고 복잡해지면, 로직을 더 작은 단위의 명명 함수로 작성해야 한다는 점을 잊지 말아야 한다.
+
+```java
+private List<ListItem> buildFeedbackListItems(
+    List<Feedback> allFeedback) {
+    return allFeedback.map(buildFeedbackItem);
+}
+
+private ListItem buildFeedbackItem(Feedback feedback) {
+    return new ListItem(
+        title: buildTitle(feedback.getTitle()),
+        body: new Column(
+            children: [
+                buildCommentText(feedback.getComment()),
+                buildCategories(feedback.getCategories()),
+            ],
+        ),
+    );
+}
+
+private TextBox buildTitle(String title) {
+    return new TextBox(
+        text: title,
+        options: new TextOptions(weight: TextWeight.BOLD),
+    );
+}
+
+private TextBox buildCommentText(String comment) {
+    return new TextBox(
+        text: comment,
+        border: new Border(style: BorderStyle.DASHED),
+    );
+}
+...
+```
