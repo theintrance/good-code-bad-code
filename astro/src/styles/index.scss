@@ -1,3 +1,5 @@
+@import 'prism-themes/themes/prism-vsc-dark-plus.css';
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -197,7 +199,7 @@ code {
   font-family: var(--font-mono);
   font-size: 0.85em;
   color: inherit;
-  background-color: var(--theme-code-inline-bg);
+  // background-color: var(--theme-code-inline-bg);
   padding: var(--padding-block) var(--padding-inline);
   margin: calc(var(--padding-block) * -1) -0.125em;
   border-radius: var(--border-radius);
@@ -407,4 +409,44 @@ h2.heading {
 
 .current-header-link a {
   color: var(--theme-text);
+}
+
+/* 공통 코드 블록 스타일 */
+pre {
+  position: relative;
+  overflow: hidden; /* 탭이 밖으로 넘치지 않도록 */
+  border-radius: 8px;
+}
+
+/* 코드 블록 내부 패딩 조정 */
+pre code {
+  display: block;
+}
+
+/* 탭 스타일 */
+pre::before {
+  content: attr(data-label);
+  position: absolute; /* 우측 상단에 고정 */
+  bottom: 0; /* 상단에 위치 */
+  right: 0; /* 우측에 위치 */
+  margin: 0.5em;
+  font-size: 1.2em;
+}
+
+/* Correct 클래스 */
+pre.correct {
+  border: 3px solid #4caf50;
+}
+
+pre.correct::before {
+  content: '✅';
+}
+
+/* Incorrect 클래스 */
+pre.incorrect {
+  border: 3px solid #f44336;
+}
+
+pre.incorrect::before {
+  content: '❌';
 }
