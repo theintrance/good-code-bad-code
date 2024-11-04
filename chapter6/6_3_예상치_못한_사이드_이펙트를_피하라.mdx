@@ -86,3 +86,22 @@ class UserDisplay {
 |thread 2 재시작||`getPixel()` 마무리|예상할 수 없는 픽셀값 얻음|
 
 * 이렇게 두 thread가 동시에 `getPixel()` 을 사용하면 서로 데이터를 가지고 경쟁하며 `canvas` 를 다시 그리게 되고, 결국 각각 호출한 `getPixel()` 의 결과는 예상할 수 없게 된다.
+
+### 6.3.3 해결책: 사이드 이펙트를 피하거나 그 사실을 분명하게 하라
+
+* 픽셀을 읽기 전에 `canvas.redraw()` 호출이 꼭 필요할까?
+    * 꼭 필요하지 않다면 호출하지 않아야 한다.
+* 반드시 호출 해야한다면 `getPixel()` 이라는 이름은 적절하지 않다.
+
+```java correct
+class UserDisplay {
+    ...
+    Color redrawAndGetPixel(Int x, Int y) {
+        canvas.redraw();
+        ...
+    }
+}
+```
+
+* 함수 이름을 바꾸어 호출하는 쪽에서 어떤 동작을 하는지 명확하게 알 수 있도록 한다.
+    * 또한 `redrawAndGetPixel()` 을 보고 thread-unsafe 를 의심할 수 있다.
