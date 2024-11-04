@@ -25,7 +25,7 @@ class MyException(Exception):
     pass
 ```
 
-```c++
+```cpp
 class MyException : public std::exception {
     public:
         const char* what() const noexcept override {

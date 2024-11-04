@@ -8,7 +8,7 @@ author: bayernmuller
 
 #### 5.3.1 간결하지만 이해하기 어려운 코드는 피해라
 
-```c++
+```cpp
 bool is_valid_id(const std::uint16_t id) {
     return count_set_bits(id & 0x7FFF) % 2 == ((id & 0x8000) >> 15);
 }   
@@ -20,7 +20,7 @@ bool is_valid_id(const std::uint16_t id) {
 
 #### 5.3.2 해결책: 더 많은 줄이 필요하더라도 가독성 높은 코드를 작성하라
 
-```c++
+```cpp
 constexpr std::uint16_t PARITY_BIT_INDEX = 15;
 constexpr std::uint16_t PARITY_BIT_MASK = 1 << PARITY_BIT_INDEX;
 constexpr std::uint16_t VALUE_BITS_MASK = ~PARITY_BIT_MASK;

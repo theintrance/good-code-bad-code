@@ -28,7 +28,7 @@ def get_user(user_id: str) -> str:
 
 * API 는 서비스를 사용할 때 알아야할 것들에 대한 개념을 형식화 해두고, 구현 세부 사항은 API 뒤로 감춘다.
 
-```c++
+```cpp
 class UserDatabase
 {
 public:
@@ -78,7 +78,7 @@ private:
     * 인터페이스는 추상화 계층을 정의하는 데 도움이 된다.
     * 하나의 추상화 계층에 대해 두 가지 이상의 다른 방식으로 구현을 하거나 향후 다르게 구현할 것으로 예상되는 경우 사용하는게 좋다.
 
-```c++
+```cpp
 class TextImportanceScorer
 {
 public:
@@ -115,7 +115,7 @@ public:
             <details>
             <summary><b>예시 보기</b></summary>
 
-            ```c++
+            ```cpp
             struct IDatabase
             {
                 virtual ~IDatabase() = default;
@@ -171,7 +171,7 @@ public:
             <details>
             <summary><b>예시 보기</b></summary>
 
-            ```c++
+            ```cpp
             struct List
             {
                 virtual void Add(int value) = 0;
