@@ -1,0 +1,81 @@
+---
+title: 입력 매개변수를 수정하는 것에 주의하라
+author: bayernmuller
+---
+
+### 6.4.1입력 파라미터를 수정하면 버그를 초래할 수 있다
+
+```cpp incorrect
+Image GetColorReversed(Image& image) {
+    for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+            image.setPixel(x, y, image.getPixel(x, y).reverse());
+        }
+    }   
+    return image;
+}
+
+int main() {
+    Image original_image = Image::FromFile("image.png");
+    Image reversed_image = GetColorReversed(original_image);
+
+    // Original Image 가 변경되어 있다..
+}
+```
+
+* 이 코드처럼 입력 파라미터를 변경하는 것은 예상치 못한 사이드 이펙트를 일으킬 수 있다.
+
+### 6.4.2 해결책: 변경 전 복사하라
+
+```cpp correct
+// 여전히 좋은 코드는 아님, 아래 Jayden 의 코멘트 참고
+Image GetColorReversed(Image& image) {
+    Image result(image);
+    for (int y = 0; y < result.height; y++) {
+        for (int x = 0; x < result.width; x++) {
+            result.setPixel(x, y, result.getPixel(x, y).reverse());
+        }
+    }
+    return result;
+}
+
+int main() {
+    Image original_image = Image::FromFile("image.png");
+    Image reversed_image = GetColorReversed(original_image);
+
+    // Original Image 는 변경되지 않는다.
+}
+```
+
+* 이렇게 변경 전 복사하는 것은 입력 파라미터를 수정하는 것을 방지할 수 있다.
+
+##### Jayden: C++ 에서 파라미터를 넘길 때의 테크닉
+ * 구글 스타일 C++ 에서는 `call-by-pointer` 일때, 이 파라미터가 변경될 수 있음을 뜻하고, call-by-**cosnt**-reference 일 때 변경되지 않음을 뜻한다.
+
+```cpp correct
+void sqaure(int *x)
+{
+    *x = *x * *x;
+}
+
+int a = 10;
+sqaure(&a); // a 는 square 에 의해 변경될 수 있음을 뜻한다.
+```
+
+```cpp correct
+Image GetColorReversed(const Image& image)
+{
+    ...
+}
+
+Image image = Image::FromFile("image.png");
+Image reversed_image = GetColorReversed(image); // image 는 변경되지 않는다.
+```
+
+```cpp incorrect
+Image GetColorReversed(Image& image) // cpplint error!
+{
+    ...
+}
+```
+* non-const reference 는 사용하지 않는다.
