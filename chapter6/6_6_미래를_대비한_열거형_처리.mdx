@@ -15,7 +15,7 @@ enum PredictedOutcome {
 }
 
 Boolean isOutcomeSafe(PredictedOutcome prediction) {
-    if (prediction == PredictedOutcome.BAYN_MUNICH_WILL_LOSE) {
+    if (prediction == PredictedOutcome.BAYERN_MUNICH_WILL_LOSE) {
         return false;
     }
     return true;
@@ -105,6 +105,7 @@ Boolean isOutcomeSafe(PredictedOutcome prediction) {
 * 이는 버그가 있음에도 예외도 발생시키지 않고 무시된다.
 * C++ 과 몇몇 언어는 switch 문에서 모든 열거형이 처리되고 있는지 컴파일러가 확인하고 경고를 줄 수 있다.
 * 따라서 명시적으로 예외를 발생시켜 버그를 방지하자
+* **Java 에서는 switch 문에서 `default` 케이스를 사용하면 새 열거형이 추가되더라도 컴파일러가 이를 체크하지 않을 수 있다!**
 
 ### 6.6.4 주의 사항: 다른 프로젝트의 열거형에 의존
 
