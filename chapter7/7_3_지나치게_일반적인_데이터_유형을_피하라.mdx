@@ -1,0 +1,150 @@
+---
+title: '지나치게 일반적인 데이터 유형을 피하라'
+author: 'hyunwok'
+---
+
+- 정수나 리스트와 같은 유형으로 표현이 '가능'하다고 해서 그것이 반드시 '좋은' 방법은 아니다.
+- 설명이 부족하고 허용하는 범위가 넓을수록 코드 오용은 쉬워진다.
+
+### 7.3.1 지나치게 일반적인 유형은 오용될 수 있다.
+- 만약 위치를 위도, 경도로 표현해야하는 상황이 오고, 여러 개의 위치를 표현해야 하는 상황이 있을 때, 배열로 표현할 수는 있지만, 가능하다고 해서 좋은 표현은 아니다.
+
+```java incorrect
+class LocationDisplay {
+    private final DrawableMap map;
+    ...
+    // 매개변수를 설명하기 위해 문서가 필요
+
+    /**
+      지도 위에 제공된 모든 좌표의 위치를 표시한다.
+      리스트의 리스트를 받아들이는데, 내부의 리스트는 정확히 두 개의 값을 가지고 있다.
+      첫 번째 값은 위치의 위도이고 두 번째 값은 경도를 나타낸다(둘 다 각도 값). 
+   
+     */
+    void markLocationsOnMap(List<List<Double>> locations) {
+        for (List<Double> location : locations) {
+            map.markLocation(location.get(0), location.get(1));
+        }
+    }
+}
+```
+
+- `List<Pair<Double, Double>>` 유형 자체로는 아무것도 설명해주지 않기에, 주석문을 읽지 않는다면 무엇인지 알지 못한다.
+- 위도와 경도의 혼동으로 인해 값이 변경되는 문제가 발생할 수 있다.
+- 형식 안정성이 거의 없어 내부 리스트에 들어 있는 항목의 수가 잘못 될 수 있다. (2개보다 적거나, 아예 없거나, 너무 많거나)
+
+#### 패러다임은 퍼지기 쉽다 
+- 1장에서 선반 설치를 위한 작업 비유에서 일을 임시변통으로 해 놓으면, 추후에 일이 더 많아진다는 것을 설명했다.
+- 아래 코드는 리스트를 사용하여 임시변통으로 해 놓은 것으로 인해 추후에도 임시변통을 할 수 밖에 없다는 것을 보여준다
+```java incorrect
+class MapFeature {
+    private final Double latitude;
+    private final Double longitude;
+    ...
+
+    // 또 주석 필요
+    /**
+     * 2개의 요소를 갖는 리스트를 반환한다. 첫 번째 값은 위도를 나타내고
+     * 두 번째 값은 경도를 나타낸다(둘 다 각도 값).
+     */
+    List<Double> getLocation() {
+        return List.of(latitude, longitude);
+    }
+}
+```
+
+### 7.3.2 페어 유형은 오용하기 쉽다
+- 많은 프로그래밍 언어에는 값을 두 개 저장하는 페어 데이터 유형이 있다. 
+- 간단히 구현한 코드
+```java 
+class Pair<A, B> {
+    private final A first;
+    private final B second;
+
+    Pair(A first, B second) {
+        this.first = first;
+        this.second = second;
+    }
+
+    A getFirst() {
+        return first;
+    }
+
+    B getSecond() {
+        return second;
+    }
+}
+```
+
+```java incorrect
+class LocationDisplay {
+    private final DrawableMap map;
+    ...
+    /**
+ * 지도 위에 제공된 좌표의 모든 위치를 표시한다.
+ *
+ * 페어의 리스트를 받아들이는데, 각 페어는 하나의 위치를 나타낸다.
+ * 페어에서 첫 번째 값은 위도이고, 두 번째 값은 경도를 나타낸다.
+ * (둘 다 각도 값)
+ */
+    void markLocationsOnMap(List<Pair<Double, Double>> locations) {
+        for (Pair<Double, Double> location : locations) {
+            map.markLocation(
+                location.getFirst(),
+                location.getSecond()
+            );
+        }
+    }
+}
+```
+
+- 기존에 존재하던 문제를 그나마 해결할 수 있지만 여전히 문제가 있다.
+    - 위도와 경도의 순서 혼동
+    - `List<Pair<Double, Double>>`의 의미
+
+### 7.3.3 해결책: 전용 유형 사용
+- 1장에서 지름길을 선택한 것이 중장기적으로는 더 느려지는 것을 설명했는데 여기서 일반적인 데이터 유형을 사용하는 것이 지름길의 예이다.
+- 무언가를 나타내기 위해 새로운 클래스를 정의하는 것은 많은 노력이 들거나 불필요한 것처럼 보일 순 있으나, 가독성과 버그의 가능성을 줄여준다.
+
+```java correct
+/**
+ * 위도와 경도를 각도로 나타낸다.
+ */
+class LatLong {
+    private final Double latitude;
+    private final Double longitude;
+
+    LatLong(Double latitude, Double longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    Double getLatitude() {
+        return latitude;
+    }
+
+    Double getLongitude() {
+        return longitude;
+    }
+}
+```
+
+- 코드의 사용
+```java correct
+class LocationDisplay {
+    private final DrawableMap map;
+    ...
+
+    /**
+     * 지도 위에 제공된 모든 좌표의 위치를 표시한다.
+     */
+    void markLocationsOnMap(List<LatLong> locations) {
+        for (LatLong location : locations) {
+            map.markLocation(
+                location.getLatitude(),
+                location.getLongitude()
+            );
+        }
+    }
+}
+```

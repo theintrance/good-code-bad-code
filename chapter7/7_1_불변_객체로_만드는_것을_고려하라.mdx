@@ -1,0 +1,223 @@
+---
+title: '불변 객체로 만드는 것을 고려하라'
+author: 'hyunwok'
+---
+
+- 객체가 생성된 후에 상태를 바꿀 수 없다면 이 객체는 불변(불가변)이고, 그 반대는 가변이다.
+- 가변 객체의 문제점들
+    - 가변 객체는 추론하기 어렵다.
+        - 가변 객체는 변질 방지 봉인이 없는 상자이기에, 객체를 여기저기 전달하면 변경됐거나 무언가 추가되지 않았다는 확신을 할 수 없다.
+    - 가변 객체는 다중 스레드에서 문제가 발생할 수 있다.
+        - 6장에서 보았던 것처럼, 객체가 가변적이라면 해당 객체를 사용하는 다중 슬레드 코드가 특히 취약할 수 있다.
+- 가변 객체가 필요한 경우도 존재하지만, 코드의 복잡성을 늘리고 문제를 일으킬 수 있기에 필요한 곳에서만 가변적이 되도록 하는 것이 바람직하다.
+
+### 7.1.1 가변 클래스는 오용하기 쉽다. 
+- 클래스를 가변적으로 만드는 가장 일반적인 방법은 세터 함수를 제공하는 것이다.
+
+```java
+class TextOptions {
+    private Font font;
+    private Double fontSize;
+
+    TextOptions(Font font, Double fontSize) {
+        this.font = font;
+        this.fontSize = fontSize;
+    }
+
+    void setFont(Font font) { // 폰트는 이 함수를 호출하여 언제든지 변경가능
+        this.font = font;
+    }
+
+    void setFontSize(Double fontSize) { // 폰트 사이즈 또한 언제든지 변경가능
+        this.fontSize = fontSize;
+    }
+
+    Font getFont() {
+        return font;
+    }
+
+    Double getFontSize() {
+        return fontSize;
+    }
+}
+```
+
+```java incorrect
+class UserDisplay { 
+    private final MessageBox messageBox;
+    
+    void sayHello() {
+        TextOptions defaultStyle = new TextOptions(Font.ARIAL, 12.0); // 폰트 사이즈를 12로 설정 후 인스턴스 생성
+        messageBox.renderTitle("Important message", defaultStyle);
+        messageBox.renderMessage("Hello", defaultStyle);
+    }
+}
+
+class MessageBox {
+    private final TextField titleField;
+    private final TextField messageField;
+
+    void renderTitle(String title, TextOptions baseStyle) {
+        baseStyle.setFontSize(18.0); // 18로 폰트 사이즈를 변경함
+        titleField.display(title, baseStyle);
+    }
+
+    void renderMessage(String message, TextOptions style) {
+        messageField.display(message, style);
+    }
+}
+```
+
+### 7.1.2 해결책: 객체를 생성할 때만 값을 할당하라
+- 모든 값이 객체의 생성 시에 제공되고 그 이후로는 변경할 수 없도록 함으로써 클래스를 불변적으로 만들 수 있고 오용도 방지할 수 있다.
+- 클래스 내에서 변수를 정의할 떄 클래스 내에서도 변수의 값이 변경되지 않도록 할 수 있다.
+    - 언어에 따라 const, final, readonly등이 있다.
+
+```java correct
+class TextOptions {
+    private final Font font;
+    private final Double fontSize;
+
+    TextOptions(Font font, Double fontSize) {
+        this.font = font;
+        this.fontSize = fontSize;
+    }
+
+    Font getFont() {
+        return font;
+    }
+
+    Double getFontSize() {
+        return fontSize;
+    }
+}
+```
+
+- 여기에 추가적으로 TextOptions 객체애 대해서 글꼴 크기만 재정의할 수 있는 방법이 필요한데 이것을 위해 쓰기 시 복사 패턴을 사용할 수 있다.
+```java correct
+class MessageBox {
+    private final TextField titleField;
+    private final TextField messageField;
+
+    void renderTitle(String title, TextOptions baseStyle) {
+        titleField.display(title, baseStyle.withFontSize(18.0));
+    }
+}
+```
+
+### 7.1.3 해결책: 불변성에 대한 디자인 패턴을 사용하라 
+- 세터 함수 제거, 멤버 변수를 파이널로 표시하면 클래스가 불변적으로 되지만 별로 쓸모없어질 수 있다.
+- 일부값이 반드시 필요하지 않거나 불변적인 클래스의 가변적 버전을 만들어야 하는 경우, 클래스를 두 가지 유용한 디자인 패턴을 통해 다용도로 구현할 수 있다.
+    - 빌터 패턴
+    - 쓰기 시 복사 패턴
+
+#### 빌더패턴
+- 클래스를 구성할 수 있는 일부 값이 선택 사항인 경우 생성자를 통해 해당 값을 모두 설정하는 것은 상당히 까다롭기에, 이 경우 세터 함수보단 빌더 패턴이 낫다.
+- 빌더 패턴은 한 클래스를 두 개로 나누는 효과를 갖는다
+    - 값을 하나씩 설정할 수 있는 빌더 클래스
+    - 빌더에 의해 작성된 불변적인 읽기 전용 클래스
+
+```java
+class TextOptions {
+    private final Font font;
+    private final Double fontSize;
+
+    TextOptions(Font font, Double fontSize) {
+        this.font = font;
+        this.fontSize = fontSize;
+    }
+
+    Font getFont() { // 게터 함수만 갖음
+        return font;
+    }
+
+    Double getFontSize() {
+        return fontSize;
+    }
+}
+
+class TextOptionsBuilder {
+    private final Font font;
+    private Double fontSize;
+
+    TextOptionsBuilder(Font font) { // 생성자를 통해 필수 값 전달 받음
+        this.font = font;
+    }
+
+    TextOptionsBuilder setFontSize(Double fontSize) { // 세터 함수를 통해 필수적이지 않은 값 받음
+        this.fontSize = fontSize;
+        return this;
+    }
+
+    TextOptions build() { // 다 정해진 후 호출쪽에서 build 호출
+        return new TextOptions(font, fontSize);
+    }
+}
+```
+
+- 인스턴스를 생성하는 예시
+
+```java correct
+// 폰트 사이즈 설정 O
+TextOptions getDefaultTextOptions() {
+    return new TextOptionsBuilder(Font.ARIAL)
+        .setFontSize(12.0) 
+        .build();
+}
+
+// 폰트 사이즈 설정 X
+TextOptions getDefaultTextOptions() {
+    return new TextOptionsBuilder(Font.ARIAL)
+        .build();
+}
+```
+
+#### 쓰기 시 복사 패턴
+- 클래스의 인스턴스를 변경해야 하는 경우에 유용한 방법이 쓰기 시 복사 패턴이다
+```java 
+class TextOptions {
+    private final Font font;
+    private final Double fontSize;
+
+    TextOptions(Font font) { // 필수 값 받는 퍼블릭 생성자
+        this(font, null); // 프라이빗 생성자 호출
+    }
+
+    private TextOptions(Font font, Double fontSize) { // 모든값 받는 프라이빗 생성자
+        this.font = font;
+        this.fontSize = fontSize;
+    }
+
+    Font getFont() {
+        return font;
+    }
+
+    Double getFontSize() {
+        return fontSize;
+    }
+
+    TextOptions withFont(Font newFont) {
+        return new TextOptions(newFont, fontSize); // 폰트만 변경된 새 객체 반환
+    }
+
+    TextOptions withFontSize(Double newFontSize) {
+        return new TextOptions(font, newFontSize); // 폰트 사이즈만 변경된 새 객체 반환
+    }
+}
+```
+
+- 인스턴스 생성 예시
+```java correct
+TextOptions getDefaultTextOptions() {
+    return new TextOptions(Font.ARIAL)
+        .withFontSize(12.0);
+}
+
+// 전에 보았던 문제 있던 코드를 수정
+void renderTitle(String title, TextOptions baseStyle) {
+    titleField.display(
+        title,
+        baseStyle.withFontSize(18.0) // 새 인스턴스 생성 
+    );
+}
+```
