@@ -29,7 +29,7 @@ class LocationDisplay {
 }
 ```
 
-- List&lt;List&lt;Double>> 유형 자체로는 아무것도 설명해주지 않기에, 주석문을 읽지 않는다면 무엇인지 알지 못한다.
+- `List<Pair<Double, Double>>` 유형 자체로는 아무것도 설명해주지 않기에, 주석문을 읽지 않는다면 무엇인지 알지 못한다.
 - 위도와 경도의 혼동으로 인해 값이 변경되는 문제가 발생할 수 있다.
 - 형식 안정성이 거의 없어 내부 리스트에 들어 있는 항목의 수가 잘못 될 수 있다. (2개보다 적거나, 아예 없거나, 너무 많거나)
 
@@ -100,7 +100,7 @@ class LocationDisplay {
 
 - 기존에 존재하던 문제를 그나마 해결할 수 있지만 여전히 문제가 있다.
     - 위도와 경도의 순서 혼동
-    - List&ltPait&ltDouble>>의 의미
+    - `List<Pair<Double, Double>>`의 의미
 
 ### 7.3.3 해결책: 전용 유형 사용
 - 1장에서 지름길을 선택한 것이 중장기적으로는 더 느려지는 것을 설명했는데 여기서 일반적인 데이터 유형을 사용하는 것이 지름길의 예이다.
@@ -131,24 +131,20 @@ class LatLong {
 
 - 코드의 사용
 ```java correct
-/**
- * 위도와 경도를 각도로 나타낸다.
- */
-class LatLong {
-    private final Double latitude;
-    private final Double longitude;
+class LocationDisplay {
+    private final DrawableMap map;
+    ...
 
-    LatLong(Double latitude, Double longitude) {
-        this.latitude = latitude;
-        this.longitude = longitude;
-    }
-
-    Double getLatitude() {
-        return latitude;
-    }
-
-    Double getLongitude() {
-        return longitude;
+    /**
+     * 지도 위에 제공된 모든 좌표의 위치를 표시한다.
+     */
+    void markLocationsOnMap(List<LatLong> locations) {
+        for (LatLong location : locations) {
+            map.markLocation(
+                location.getLatitude(),
+                location.getLongitude()
+            );
+        }
     }
 }
 ```
