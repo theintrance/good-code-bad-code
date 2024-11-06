@@ -1,0 +1,113 @@
+---
+title: 미래를 대비한 열거형 처리
+author: bayernmuller
+---
+
+* 지금까지 6장에서는 코드를 사용하는 쪽에서 코드가 수행하는 일이나 반환값이 예상을 벗어나지 않도록 하는데에 초점을 맞추었다.
+* 하지만 반대로, 우리가 의존하는 코드에 대해서 부실한 가정을 할 경우에도 버그가 생길 수 있다.
+
+### 6.6.1 미래에 추가될 수 있는 enum 값을 암묵적으로 처리하는 것은 문제가 될 수 있다
+
+```java 
+enum PredictedOutcome {
+    BAYERN_MUNICH_WILL_WIN,
+    BAYERN_MUNICH_WILL_LOSE,
+}
+
+Boolean isOutcomeSafe(PredictedOutcome prediction) {
+    if (prediction == PredictedOutcome.BAYERN_MUNICH_WILL_LOSE) {
+        return false;
+    }
+    return true;
+}
+```
+
+* 위 코드는 Enum 의 요소가 2개일 때는 잘 작동한다.
+* 하지만 Enum 의 요소가 추가될 때 문제가 생긴다.
+
+```java incorrect
+enum PredictedOutcome {
+    BAYERN_MUNICH_WILL_WIN,
+    BAYERN_MUNICH_WILL_LOSE,
+    REAL_MADRID_WILL_WIN_THE_CHAMPIONS_LEAGUE, // 새로운 요소가 추가됨
+}
+
+Boolean isOutcomeSafe(PredictedOutcome prediction) {
+    if (prediction == PredictedOutcome.BAYN_MUNICH_WILL_LOSE) {
+        return false;
+    }
+    return true;
+}
+```
+
+* 3번쨰 enum 값이 추가되었는데, `isOutcomeSafe()` 에서는 `REAL_MADRID_WILL_WIN_THE_CHAMPIONS_LEAGUE` 를 safe 하다고 판단할 것이다. 절대 안된다.
+* 이렇게 Enum 을 추가할 떄 Enum 을 참조하는 코드에 문제가 생길 수 있다.
+
+### 6.6.2 해결책: 모든 경우를 처리하는 스위치 문을 사용하라
+
+* 이 문제를 해결하기 위해 모든 열거값을 명시적으로 처리하도록 강제할 수 있다.
+
+```java
+Boolean isOutcomeSafe(PredictedOutcome prediction) {
+    switch (prediction) {
+        case BAYERN_MUNICH_WILL_WIN:
+            return true;
+        case BAYERN_MUNICH_WILL_LOSE:
+            return false;
+    }
+    throw new UncheckedException("Unknown prediction: " + prediction);
+}
+```
+
+* 만약 `switch` 문에서 모든 경우를 처리하지 않는다면 `UncheckedException` 이 발생할 것이다.
+    * 즉 새로운 열거값을 추가했을 때, 이것을 사용하는 코드의 수정을 강제할 수 있다.
+    * Unit Test 를 작성하여 모든 Enum 값을 처리하는지 확인할 수 있다.
+
+```java correct
+testIsOutcomeSafe_allPredictedOutcomeValues() {
+    for (PredictedOutcome prediction : PredictedOutcome.values()) {
+        isOutcomeSafe(prediction);
+    }
+}
+```
+
+```java correct
+Boolean isOutcomeSafe(PredictedOutcome prediction) {
+    switch (prediction) {
+        case BAYERN_MUNICH_WILL_WIN:
+            return true;
+        case BAYERN_MUNICH_WILL_LOSE:
+            return false;
+        case REAL_MADRID_WILL_WIN_THE_CHAMPIONS_LEAGUE:
+            return false;
+    }
+    throw new UncheckedException("Unknown prediction: " + prediction);
+}
+```
+* 단위 테스트를 통해 모든 열거값을 처리하는지 확인할 수 있었고, 코드를 수정할 수 있었다.
+
+### 6.6.3 switch: default-case 를 주의하라
+
+```java incorrect
+Boolean isOutcomeSafe(PredictedOutcome prediction) {
+    switch (prediction) {
+        case BAYERN_MUNICH_WILL_WIN:
+            return true;
+        case BAYERN_MUNICH_WILL_LOSE:
+            return false;
+        default:
+            return false;
+    }
+}
+```
+
+* 새로운 열거값이 추가되었을 때, `default` 케이스로 수행되어 `false` 를 반환하게 된다.
+* 이는 버그가 있음에도 예외도 발생시키지 않고 무시된다.
+* C++ 과 몇몇 언어는 switch 문에서 모든 열거형이 처리되고 있는지 컴파일러가 확인하고 경고를 줄 수 있다.
+* 따라서 명시적으로 예외를 발생시켜 버그를 방지하자
+* **Java 에서는 switch 문에서 `default` 케이스를 사용하면 새 열거형이 추가되더라도 컴파일러가 이를 체크하지 않을 수 있다!**
+
+### 6.6.4 주의 사항: 다른 프로젝트의 열거형에 의존
+
+* 다른 프로젝트에서 열거형을 가지고 와서 사용할 수 있다.
+* 다른 프로젝트를 참조할 때, 그 프로젝트의 열거형이 변경될 수 있음을 기억하고 코드를 작성해야한다.

@@ -1,0 +1,40 @@
+---
+title: 오해를 일으키는 함수는 작성하지 말라
+author: bayernmuller
+---
+
+### 6.5.1 중요한 입력이 누락되었을 때 아무것도 하지 않으면 놀랄 수 있다
+
+```java incorrect
+class UserDisplay {
+    private final LocalizedMessages messages;
+    ...
+    void displayLegalDisclaimer(String? legalText) {
+        if (legalText == null) {
+            return;
+        }
+        ...
+        displayOverlay(
+            title: messages.getLegalDisclaimerTitle(),
+            message: legalText,
+            textColor: Color.RED
+        );
+    }
+}
+```
+* 위 `displayLegalDisclaimer()` 함수는 `legalText` 가 `null` 일 때 아무것도 하지 않는다.
+* 호출하는 쪽에서 `legalText` 가 `null` 일 때 아무것도 하지 않는다는 것을 알 수 없으며, 항상 잘 작동하고 있다고 착각할 수 있다.
+
+### 6.5.2 해결책: 중요한 입력은 필수 항목으로 만들라
+
+* 중요한 파라미터는 nullable 하지 않도록 하라.
+
+```java correct
+class UserDisplay {
+    private final LocalizedMessages messages;
+    ...
+    void displayLegalDisclaimer(String legalText) {
+        // legalText CANNOT be null!
+    }
+}
+```
