@@ -1,0 +1,115 @@
+---
+title: '객체를 깊은 수준까지 불변적으로 만드는 것을 고려하라'
+author: 'hyunwok'
+---
+
+- 클래스가 실수로 가변적으로 될 수 있는 일반적인 경우는 깊은 가변성 때문이다
+- 무심코 가변적으로 될 수 있는 좀 더 미묘한 경우를 간과하기 쉽다.
+
+### 7.2.1 깊은 가변성은 오용을 초래할 수 있다.
+```java incorrect
+class TextOptions {
+    private final List<Font> fontFamily; // 여러 폰트를 갖고 있는 리스트
+    private final Double fontSize;
+
+    TextOptions(List<Font> fontFamily, Double fontSize) {
+        this.fontFamily = fontFamily;
+        this.fontSize = fontSize;
+    }
+
+    List<Font> getFontFamily() {
+        return fontFamily;
+    }
+
+    Double getFontSize() {
+        return fontSize;
+    }
+}
+```
+
+- 위 예제는 글꼴 리스트를 완전히 제어할 수 없기에 무의식중에 가변적으로 될 수 있다.
+- 위 클래스는 글꼴 목록을 갖고 있는 것이 아닌 글꼴 목록에 대한 참조를 갖고 있다는 점을 기억해야 한다.
+    - 참조를 갖고 있는 상태에서, 글꼴 목록이 변경되면 동일한 리스트를 참조하기 때문에 영향을 미친다.
+
+#### 시나리오 A 코드 예제
+- 클래스를 생성하는 코드가 글꼴 목록에 대한 참조를 유지하고 나중에 변경할 수 있다.
+
+```java incorrect
+List<Font> fontFamily = [Font.ARIAL, Font.VERDANA];
+
+TextOptions textOptions = 
+    new TextOptions(fontFamily, 12.0); // 새 인스턴스에 리스트 참조가 전달됨
+
+fontFamily.clear(); // 참조로 인해 아까 만든 새 인스턴스의 값 또한 사라지게 됨
+fontFamily.add(Font.COMIC_SANS);
+```
+
+#### 시나리오 B 코드 예제
+- getFontFamily()를 호출할 때 글꼴 목록에 대한 참조를 받고, 이걸 사용하여 목록의 내용을 수정할 수 있다.
+
+```java incorrect
+TextOptions textOptions = 
+    new TextOptions([Font.ARIAL, Font.VERDANA], 12.0);
+
+List<Font> fontFamily = textOptions.getFontFamily(); //  새 인스턴스의 리스트에 대한 참조를 가져옴
+fontFamily.clear(); // 새 리스트 뿐만 아니라 새 인스턴스 내부의 리스트 또한 사라짐
+fontFamily.add(Font.COMIC_SANS);
+```
+
+- 이런 방식으로 코드를 변경할 수 있게 되면 코드를 오용하기 쉬워지고, 추후에는 수정하는 게 안전한지 추적하기 또한 쉽지 않아진다.
+
+### 7.2.2 해결책: 방어적으로 복사하라
+- 객체의 복사본을 만들어서 반환하여 위의 문제를 해결할 수 있다.
+- 최선의 해결책은 아니지만, 깊은 불변성을 담보하기 위해 효과가 있는 간단한 방법이다.
+
+```java correct
+class TextOptions {
+    private final List<Font> fontFamily;
+    private final Double fontSize;
+
+    TextOptions(List<Font> fontFamily, Double fontSize) {
+        this.fontFamily = List.copyOf(fontFamily);
+        this.fontSize = fontSize;
+    }
+
+    List<Font> getFontFamily() {
+        return List.copyOf(fontFamily);
+    }
+
+    Double getFontSize() {
+        return fontSize;
+    }
+}
+```
+
+- 이런 방식이 꽤 효과적일 수 있지만, 다음과 같은 단점도 명확하다.
+    - 복사하는데 비용이 많이 들 수 있다, 만약 수백개의 폰트가 존재한다면 성능 문제가 발생할 수 있다.
+    - 클래스 내부에서 발생하는 변경을 막아주지 못하는 경우가 많다, final을 사용한다 해도 클래스 내에서는 똑같은 문제가 발생할 수 있다.
+
+### 7.2.3 해결책: 불변적 자료구조를 사용하라
+- 객체를 불변적으로 만드는 것은 널리 받아들여지고 있는 좋은 관행이며, 그 결과 많은 유틸리티가 공통 유형이나 자료구조에 대해 불변적인 버전을 제공한다.
+    - Java : 구아바 라이브러리의 ImmutableList 클래스
+    - C# : System.Collections.Immutable의 ImmutableList 클래스
+    - JS 기반 언어 
+        - Immutable.js 모듈의 리스트 클래스
+        - JS 배열이지만 Immer 모듈을 사용하여 불변적으로 만들어진 JS의 배열
+
+```java correct
+class TextOptions {
+    private final ImmutableList<Font> fontFamily;
+    private final Double fontSize;
+
+    TextOptions(ImmutableList<Font> fontFamily, Double fontSize) {
+        this.fontFamily = fontFamily;
+        this.fontSize = fontSize;
+    }
+
+    ImmutableList<Font> getFontFamily() {
+        return fontFamily;
+    }
+
+    Double getFontSize() {
+        return fontSize;
+    }
+}
+```
