@@ -1,0 +1,175 @@
+---
+title: 의존성 주입의 사용을 고려하라
+author: bayernmuller
+---
+
+### 8.1.1 하드코딩된 의존성은 문제가 될 수 있다
+
+```java incorrect
+interface RoadMap {
+    List<Road> getRoads();
+    List<Junction> getJunctions();
+}
+
+class NorthAmericaRoadMap implements RoadMap {
+    // ...
+}
+
+class RoutePlanner {
+    private final RoadMap roadMap;
+
+    public RoutePlanner() {
+        this.roadMap = new NorthAmericaRoadMap();
+    }
+}
+```
+
+* `RoutePlanner` 클래스는 `RoadMap` 인터페이스를 구현한 클래스 `NorthAmericaRoadMap` 에 의존하고 있다.
+* 위 코드의 경우 `NorthAmericaRoadMap` 의 생성이 하드코딩 되어있어 외의 다른 `RoadMap` 구현체를 사용할 수 없고, 활용 범위가 엄청나게 제한되었다.
+* 만약 여기서 `NorthAmericaRoadMap` 생성자에 추가적인 정보가 필요한 경우를 가정해보자
+
+```java incorrect
+class NorthAmericaRoadMap implements RoadMap {
+    public NorthAmericaRoadMap(
+        Boolean useOnlineVersion,
+        Boolean includeSeasonalRoads) {
+        // ...
+    }
+
+    override List<Road> getRoads() { ... }
+    override List<Junction> getJunctions() { ... }
+}
+```
+
+* 이것으로 두개의 인수는 `NorthAmericaRoadMap` 생성자에 전달되어야 한다.
+* 인스턴스의 생성이 복잡해짐에 따라 추상화 계층이 지저분해지고 코드의 적응성이 한층 더 제한되었다.
+
+```java incorrect
+class RoutePlanner {
+    private const Boolean USE_ONLINE_VERSION = true;
+    private const Boolean INCLUDE_SEASONAL_ROADS = false;
+    private final RoadMap roadMap;
+
+    public RoutePlanner() {
+        this.roadMap = new NorthAmericaRoadMap(
+            USE_ONLINE_VERSION,
+            INCLUDE_SEASONAL_ROADS
+        );
+    }
+}
+```
+
+* `RoutePlanner` 는 인스턴스를 쉽게 생성할 수 있게 구현되었지만 다용도로 사용할수 없고, 항상 온라인 지도를 사용하고 항상 계절 도로는 제외된다.
+
+### 8.1.2 해결책: 의존성 주입을 사용하라
+
+```java correct
+class RoutePlanner {
+    private final RoadMap roadMap;
+
+    public RoutePlanner(RoadMap roadMap) {
+        this.roadMap = roadMap;
+    }
+}
+
+RoutePlanner routePlanner = new RoutePlanner(
+    new NorthAmericaRoadMap(true, false));
+
+RoutePlanner routePlanner = new RoutePlanner(
+    new EuropeRoadMap());
+```
+
+* 이렇게 클래스 외부에서 인스턴스를 만들어 전달하므로써 `RoutePlanner` 클래스의 의존성을 주입하고있다.
+* `RoutePlanner` 클래스의 확장성이 높아졌다.
+* 하지만 인스턴스 생성이 복잡해졌다는 단점이 있는데, 이는 팩토리 함수로 해결할 수 있다.
+
+```java correct
+class RoutePlannerFactory {
+    public static RoutePlanner createEuropeRoutePlanner() {
+        return new RoutePlanner(new EuropeRoadMap());
+    }
+
+    public static RoutePlanner createNorthAmericaRoutePlanner() {
+        return new RoutePlanner(new NorthAmericaRoadMap(true, false));
+    }
+}
+```
+
+#### 의존성 주입 프레임워크
+
+* 팩토리 함수를 직접 장성하는 것에 대안으로 의존성 주입 프레임워크를 사용할 수도 있다.
+* C++ 에는 `Boost.DI` 같은 프레임워크가 있고, 여러 계층으로 의존성을 주입할 수도 있다.
+
+```cpp correct
+#include <boost/di.hpp>
+#include <memory>
+#include <iostream>
+
+namespace di = boost::di;
+
+class Database {
+public:
+    Database() { std::cout << "Database created\n"; }
+};
+
+class UserRepository {
+    std::shared_ptr<Database> db;
+public:
+    UserRepository(std::shared_ptr<Database> db) : db(std::move(db)) {
+        std::cout << "UserRepository created\n";
+    }
+};
+
+class AuthService {
+    std::shared_ptr<UserRepository> repo;
+public:
+    AuthService(std::shared_ptr<UserRepository> repo) : repo(std::move(repo)) {
+        std::cout << "AuthService created\n";
+    }
+};
+
+class Service {
+    std::shared_ptr<AuthService> auth;
+public:
+    Service(std::shared_ptr<AuthService> auth) : auth(std::move(auth)) {
+        std::cout << "Service created\n";
+    }
+};
+
+int main() {
+    auto injector = di::make_injector();
+    auto service = injector.create<std::shared_ptr<Service>>();
+
+    return 0;
+}
+```
+* 의존성이 여러 계층이지만 단 2줄로 최종 인스턴스를 생성할 수 있다.
+* 또한 테스트가 필요한 경우 중간 단계에 Mock 객체를 쉽게 주입할 수 있다.
+
+```cpp correct
+auto injector = di::make_injector(
+    di::bind<Database>().to<MockDatabase>()
+);
+auto service = injector.create<std::shared_ptr<Service>>();
+```
+
+### 8.1.3 의존성 주입을 염두에 두고 코드를 설계하라
+
+```java incorrect
+class NorthAmericaRoadMap {
+    static List<Road> getRoads() { ... }
+    static List<Junction> getJunctions() { ... }
+}
+
+class RoutePlanner {
+    Route planRoute(LatLong start, LatLong end)
+    {
+        List<Road> roads = NorthAmericaRoadMap.getRoads();
+        List<Junction> junctions = NorthAmericaRoadMap.getJunctions();
+        ...
+    }
+}
+```
+
+* 만약 위처럼 `RoutePlanner` 클래스가 `NorthAmericaRoadMap` 클래스의 **static method** 에 의존하고 있다면, 의존성 주입이 어려워진다.
+    * 이렇게 static method 에 과도하게 의존하는 것을 `Static Cling` 이라고 한다. 이는 단위 테스트에서 특히 문제가 된다.

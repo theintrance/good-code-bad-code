@@ -1,0 +1,67 @@
+---
+title: 논리에 대한 진실의 원천을 하나만 가져야 한다
+author: bayernmuller
+---
+
+* 진실의 원천은 데이터에만 있는 것이 아니라 논리에도 적용된다.
+
+### 7.6.1 논리에 대한 진실의 원천이 여러개 있으면 버그를 유발할 수 있다
+
+```python
+class DataLogger:
+    def __init__(self, logged_values: list[int]):
+        self.logged_values = logged_values
+
+    def save_value(self, file: TextIO) -> None:
+        content = ",".join([str(value, 10) for value in self.logged_values])
+        file.write(content)
+```
+
+* 위 코드에서는 정수가 들어있는 리스트를 저장하고 있다가 그것을 쉼표로 구분하는 10진수로 표현된 문자열을 만들어 파일에 저장하는 함수를 제공한다.
+    * `[1, 2, 3]` -> `"1,2,3"`
+
+* 여기서 역으로 데이터를 읽어오려면, 쉼표를 기준으로 문자열을 분리하고 10진수로 변환하여 정수 리스트를 만들면 된다.
+
+```python 
+class DataLoader:
+    def load_values(self, file: TextIO) -> list[int]:
+        return [int(value, 10) for value in file.read().split(",")]
+```
+* (오류 처리가 되어야하는 미완 코드이지만 예제를 위해 생략)
+
+* `DataLogger`와 `DataLoader`는 논리적으로 동일한 데이터를 다루고 있지만, 데이터를 저장하는 방법과 읽어오는 방법을 따로 구현하고 있다.
+    * 만약 데이터를 16진수로 표현하기로 변경된다면?
+    * 데이터를 구분짓는 토큰이 쉼표에서 세미콜론으로 변경된다면?
+
+* 즉 데이터를 다루는 로직에 변경사항이 생길 경우 한 쪽만 수정하면 버그가 생긴다.
+
+### 7.6.1 논리에 대한 진실의 원천을 하나만 가져야 한다.
+
+```python correct
+class IntListFormat:
+    DELIMITER = ","
+    RADIX = 10
+
+    def serialize(self, values: list[int]) -> str:
+        return self.DELIMITER.join([str(value, self.RADIX) for value in values])
+
+    def deserialize(self, content: str) -> list[int]:
+        return [int(value, self.RADIX) for value in content.split(self.DELIMITER)]
+
+class DataLogger():
+    def __init__(self):
+        self.list_format = IntListFormat()
+
+    def save_value(self, file: TextIO) -> None:
+        content = self.list_format.serialize(self.logged_values)
+        file.write(content)
+
+class DataLoader():
+    def __init__(self):
+        self.list_format = IntListFormat()
+
+    def load_values(self, file: TextIO) -> list[int]:
+        return self.list_format.deserialize(file.read())
+```
+
+* 데이터를 다루는 로직을 `IntListFormat` 클래스에서만 처리하므로써 버그를 방지한다.

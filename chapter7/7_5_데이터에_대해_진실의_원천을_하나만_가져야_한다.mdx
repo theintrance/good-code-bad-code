@@ -1,0 +1,114 @@
+---
+title: 데이터에 대해 진실의 원천을 하나만 가져야 한다.
+author: bayernmuller
+---
+
+* **Primary Data**: 코드에 반드시 제공해야 할 데이터
+* **Derived Data**: 코드에 제공된 데이터를 기반으로 계산된 데이터
+
+* 예를 들어 은행 계좌의 상태를 표현 할때, `credit`, `debit` 은 **primary data** 가 되고, `balance (= credit - debit)` 는 **derived data** 가 된다.
+
+* 여기서 **Primary Data** 를 진실의 원천 (source of truth) 이라고 하며 계좌의 상태를 완전히 설명하고 계좌의 상태를 추적하기 위해 저장되어야 하는 유일한 값이다.
+
+### 7.5.1 또 다른 진실의 원천은 유효하지 않은 상태를 초래할 수 있다.
+
+```cpp incorrect
+class Account {
+    int credit_;
+    int debit_;
+    int balance_;
+
+public:
+    Account(int credit, int debit, int balance)
+        : credit_(credit),
+          debit_(debit),
+          balance_(balance) 
+    {
+    }
+
+    int get_credit() const { return credit_; }
+    int get_debit() const { return debit_; }
+    int get_balance() const { return balance_; }
+};
+```
+
+```cpp incorrect
+Account acct(credit, debit, debit - credit);
+```
+
+* 여기서 `Account` 인스턴스를 생성할 때, `balance` 를 잘 못 계산하여 유효하지 않은 상태를 초래한다.
+* 이는 `balance` 가 `derived data` 인데도 불구하고 클래스 외부에서 계산하여 전달하여 진실의 원천이 2개가 되어 발생하는 문제이다.
+
+```cpp correct
+class Account {
+    int credit_;
+    int debit_;
+
+public:
+    Account(int credit, int debit)
+        : credit_(credit),
+          debit_(debit)
+    {
+    }
+
+    int get_credit() const { return credit_; }
+    int get_debit() const { return debit_; }
+    int get_balance() const { return credit_ - debit_; }
+};
+```
+
+* 별도의 `balance` 필드를 두지 않고 진실의 원천을 하나로 관리한다.
+
+#### 데이터 계산에 비용이 많이 드는 경우
+
+* 방금의 예는 단순히 두개의 데이터를 빼는 것 뿐이었지만 경우에 따라 부담이 되는 연산이 될 수 있다.
+* 만약 거래 이력을 가지고 현재 잔액을 계산해야한다면?
+* 사용자가 잔액을 요청 할 때 실제로 계산을 하고, 그 값을 캐시하도록 할 수 있다.
+
+```cpp correct
+class Account
+{
+    const std::list<Transaction> transactions_;
+    double cached_credit_;
+    double cached_debit_;
+    bool has_cached_credit_;
+    bool has_cached_debit_;
+
+public:
+    Account(const std::list<Transaction>& transactions)
+        : transactions_(transactions),
+          cached_credit_(0),
+          cached_debit_(0),
+          has_cached_credit_(false),
+          has_cached_debit_(false)
+    {
+    }
+
+    double get_credit() const
+    {
+        if (!has_cached_credit_)
+        {
+            cached_credit_ = std::accumulate(transactions_.begin(), transactions_.end(), 0, [](int sum, const Transaction& t) { return sum + t.get_credit(); });
+            has_cached_credit_ = true;
+        }
+        return cached_credit_;
+    }
+
+    double get_debit() const
+    {
+        if (!has_cached_debit_)
+        {
+            cached_debit_ = std::accumulate(transactions_.begin(), transactions_.end(), 0, [](int sum, const Transaction& t) { return sum + t.get_debit(); });
+            has_cached_debit_ = true;
+        }
+        return cached_debit_;
+    }
+
+    double get_balance() const
+    {
+        return get_credit() - get_debit();
+    }
+};
+```
+
+* 이 클래스는 불변성이 보장되며, 비용이 많이 드는 연산을 한번 수행 후 값을 캐시하므로써 성능을 향상시킬 수 있다.
