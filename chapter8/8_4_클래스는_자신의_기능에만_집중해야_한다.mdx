@@ -1,0 +1,69 @@
+---
+title: '클래스는 자신의 기능에만 집중해야 한다'
+author: 'hyunwok'
+---
+
+- 모듈화의 핵심 목표 중 하나는 변경된 요구사항과 직접 관련된 코드만 수정하는 것
+- 단일 개념이 단일 클래스 내에 완전히 포함된 경우라면 이 목표를 달성할 수 있다.
+
+### 8.4.1 다른 클래스와 지나치게 연관되어 있으면 문제가 될 수 있다
+```java incorrect
+class Book {
+    private final List chapters;
+
+    ...
+
+    Int wordCount() {
+        return chapters
+            .map(getChapterWordCount)
+            .sum();
+    }
+
+    private static Int getChapterWordCount(Chapter chapter) {
+        return chapter.getPrelude().wordCount() + 
+            chapter.getSections()
+                .map(section -> section.wordCount())
+                .sum();
+    }
+}
+
+class Chapter {
+    ...
+
+    TextBlock getPrelude() { ... }
+
+    List getSections() { ... }
+}
+```
+- Book 클래스 내부에 있지만, Chapter 클래스에만 관련된 사항을 갖는다.
+- 요구사항이 변경되어 장의 끝에 요약을 포함해야 한다면 챕터 클래스 뿐만 아니라 북클래스에서도 변경이 일어남
+
+### 8.4.2 해결책: 자신의 기능에만 충실한 클래스를 만들라
+- 자신의 클래스에만 집중할 수 있다.
+```java correct
+class Book {
+    private final List chapters;
+    ...
+
+    Int wordCount() {
+        return chapters
+            .map(chapter -> chapter.wordCount())
+            .sum();
+    }
+}
+
+class Chapter {
+    ...
+
+    TextBlock getPrelude() { ... }
+
+    List getSections() { ... }
+
+    Int wordCount() {
+        return getPrelude().wordCount() +
+            getSections()
+                .map(section -> section.wordCount())
+                .sum();
+    }
+}
+```
