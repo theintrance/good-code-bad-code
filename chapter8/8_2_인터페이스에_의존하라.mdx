@@ -1,0 +1,50 @@
+---
+title: '인터페이스에 의존하라'
+author: 'hyunwok'
+---
+
+- 클래스 행동을 인터페이스로 만들고, 이에 의존한다면 어떤 구현 클래스라도 사용할 수 있으므로 코드가 훨씬 더 모듈화되고 적응성이 높아진다.
+
+### 8.2.1 구체적인 구현에 의존하면 적응성이 제한된다
+
+```java incorrect
+interface RoadMap {
+    List<Road> getRoads();
+    List<Junction> getJunctions();
+}
+
+class NorthAmericaRoadMap implements RoadMap {
+    ...
+}
+
+class RoutePlanner {
+    private final NorthAmericaRoadMap roadMap;
+
+    RoutePlanner(NorthAmericaRoadMap roadMap) {
+        this.roadMap = roadMap;
+    }
+    
+    Route planRoute(LatLong startPoint, LatLong endPoint) {
+        ...
+    }
+}
+```
+
+- NorthAmericaRoadMap 클래스에 의존하여 다른 클래스에 대해서는 사용할 수 없다.
+
+### 8.2.2 해결책: 가능한 경우 인터페이스에 의존하라
+- 클래스가 아닌 추상화가 잘 된 인터페이스에 의존한다면 더 간결한 추상화 계층과 더 나은 모듈화를 달성할 수 있다.
+
+```java correct
+class RoutePlanner {
+    private final RoadMap roadMap;
+
+    RoutePlanner(RoadMap roadMap) {
+        this.roadMap = roadMap;
+    }
+    
+    Route planRoute(LatLong startPoint, LatLong endPoint) {
+        ...
+    }
+}
+```

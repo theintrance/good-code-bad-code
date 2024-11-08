@@ -1,0 +1,213 @@
+---
+title: '클래스 상속을 주의하라'
+author: 'hyunwok'
+---
+
+- 클래스 게층이 형성되는 예시
+```
+Vehicle
+├── Car
+│   ├── FordMustang
+│   └── Volvo240
+└── Truck
+```
+- 두 가지 사물이 진정한 `is-a` 관계를 갖는다면 상속이 적절할 수 있다.
+    - 허나 몇가지 단점이 있고, 상속이 야기하는 문제가 치명적일 수 있기 때문에 상속을 구현할 때 신중하게 생각해봐야 한다.
+- 상속을 사용할 수 있는 상황에서 많은 경우 **구성**을 상속 대신 사용할 수 있다.
+    - 클래스를 확장하기보다는 인스턴스를 갖고 있음으로써 한 클래스를 다른 클래스로부터 구성할 수 있다.
+    - 이렇게 하면 종종 상속의 함정을 피할 수 있고 모듈화와 내구성이 향상된 코드를 작성할 수 있다.
+
+### 8.3.1 클래스 상속은 문제가 될 수 있다
+- 쉼표로 구분된 정수를 갖고 있는 파일을 열어 정수를 하나씩 읽어 들이는 클래스로 현실적인 예시를 살펴본다.
+    - 하위 문제
+        - 파일에서 데이터를 읽는다.
+        - 쉼표로 구분된 파일 내용을 개별 문자열로 나눈다.
+        - 각 문자열을 정수로 반환한다.
+
+- 예시를 인터페이스로 해결한 코드
+```java
+interface FileValueReader {
+    String? getNextValue();
+    void close();
+}
+
+interface FileValueWriter {
+    void writeValue(String value);
+    void close();
+}
+
+/**
+ * 쉼표로 구분된 값을 가지고 있는 파일을 읽거나 쓰기 위한 유틸리티
+ */
+class CsvFileHandler implements FileValueReader, FileValueWriter {
+    
+    CsvFileReader(File file) { ... }
+    
+    override String? getNextValue() { 
+        // 파일로부터 쉼표로 구분된 문자열을 하나씩 읽는다.
+        ...
+    }
+
+    override void writeValue(String value) { 
+        // 파일에 값을 쓴다.
+        ...
+    }
+
+    override void close() { 
+        // 파일 닫기
+        ...
+    }
+}
+```
+
+- 위 코드를 상속한 코드
+```java
+/**
+ * 파일로부터 숫자를 하나씩 읽어 들이는 유틸리티
+ * 파일은 쉼표로 구분된 값을 가지고 있어야 한다.
+ */
+class IntFileReader extends CsvFileHandler {
+    
+    IntFileReader(File file) {
+        super(file); // IntFileReader 생성자는 슈퍼클래스 생성자를 호출한다.
+    }
+
+    Int? getNextInt() {
+        String? nextValue = getNextValue(); // 슈퍼클래스로부터 getNextValue() 함수를 호출한다.
+        if (nextValue == null) {
+            return null;
+        }
+        return Int.parse(nextValue, Radix.BASE_10);
+    }
+}
+```
+
+- IntFileReader 용례
+
+```java
+IntFileReader reader = new IntFileReader(myFile);
+Int? firstValue = reader.getNextInt();
+reader.close();
+```
+
+#### 상속은 추상화 계층에 방해가 될 수 있다
+- 한 클래스가 다른 클래스를 확장하면 슈퍼클래스의 모든 기능을 상속하는데, 유용할 때도 있지만 원하는 것보다 더 많은 기능을 노출할 수도 있다.
+    - 이로 인해 추상화 게층이 복잡해지고 구현 세부 정보가 드러날 수 있다.
+```java incorrect
+class IntFileReader extends CsvFileHandler {
+    ...
+
+    Int? getNextInt() { ... }
+
+    // 슈퍼클래스로부터 상속받은 함수
+    String? getNextValue() { ... }
+    void writeValue(String value) { ... }
+    void close() { ... }
+}
+```
+
+#### 상속은 적응성 높은 코드의 작성을 어렵게 만들 수 있다
+- 쉼표 뿐만 아니라 세미콜론으로 구분된 값이 포함된 파일에서 문자열을 읽어야한다는 요구사항 
+- 다른 개발자가 SemicolonFileHandler 클래스를 구현해놓은 상황
+- 요구사항의 변동으로 인해 Reader 또한 변경이 되어야 하는 문제 발생
+    - 유사한 코드가 반복되어 유지보수 비용과 버그 발생 가능성을 높임
+```java 
+/**
+ * 세미콜론으로 구분된 값을 가지고 있는 파일을 읽거나 쓰기 위한 유틸리티
+ */
+class SemicolonFileHandler implements FileValueReader, FileValueWriter {
+    ...
+    
+    SemicolonFileHandler(File file) { ... }
+    
+    override String? getNextValue() { ... }
+    
+    override void writeValue(String value) { ... }
+    
+    override void close() { ... }
+}
+```
+
+- 간단하게 처리할 수 있을 줄 알았던 문제이지만, 세미콜론을 위한 Reader 클래스의 필요로 인해 유사한 코드 반복
+
+```java incorrect
+/**
+ * 파일로부터 정수를 하나씩 읽어 들이기 위한 유틸리티
+ * 파일은 세미콜론으로 구분된 값을 가지고 있다.
+ */
+class SemicolonIntFileReader extends SemicolonFileHandler {
+    
+    SemicolonIntFileReader(File file) {
+        super(file);
+    }
+
+    Int? getNextInt() {
+        String? nextValue = getNextValue();
+        if (nextValue == null) {
+            return null;
+        }
+        return Int.parse(nextValue, Radix.BASE_10);
+    }
+}
+```
+
+### 8.3.2 해결책: 구성을 사용하라 
+- 상속을 사용한 원래 동기는 IntFileReader 클래스를 구현하는 데 도움이 되고자 CsvFileHandler 클래스의 일부 기능을 재사용하는 것이었다.
+- 상속은 몇 가지 단점을 갖고 있었기에, 다른 방법인 구성을 사용해서 CsvFileHandler의 기능을 재사용해본다.
+
+```java correct
+class IntFileReader {
+    private final FileValueReader valueReader; // handler 상속대신 인터페이스를 구현하는 클래스의 인스턴스를 갖음
+
+    IntFileReader(FileValueReader valueReader) {
+        this.valueReader = valueReader;
+    }
+
+    Int? getNextInt() {
+        String? nextValue = valueReader.getNextValue();
+        if (nextValue == null) {
+            return null;
+        }
+        return Int.parse(nextValue, Radix.BASE_10);
+    }
+
+    void close() {
+        valueReader.close(); // 위임패턴 사용, 전달한다고 표현
+    }
+}
+```
+
+#### 더 간결한 추상화 계층
+- 인터페이스를 사용하면 외부로 API를 노출하지 않을 수 있다.
+```java correct
+class IntFileReader {
+    ...
+
+    Int? getNextInt() { ... }
+    void close() { ... }
+}
+```
+
+#### 적응성이 높은 코드 
+- 인터페이스에 의존하며 의존성 주입을 통해 추가적인 요구사항이나 중복 코드의 문제를 해결할 수 있다.
+```java correct
+class IntFileReaderFactory {
+
+    IntFileReader createCsvIntReader(File file) {
+        return new IntFileReader(new CsvFileHandler(file));
+    }
+
+    IntFileReader createSemicolonIntReader(File file) {
+        return new IntFileReader(new SemicolonFileHandler(file));
+    }
+}
+```
+
+### 8.3.3 진정한 `is-a` 관계는 어떤가?
+- 차 상속의 예제에서는 관계가 명확하지만, 위의 코드에서는 명확하지 않다.
+- 또한 진정한 is-a 관계가 있다고 하더라도 상속은 여전히 문제가 될 수 있다는 점과, 몇가지 주의해야 할 점을 알아야 한다.
+    - 취약한 베이스 클래스 문제 - 서브클래스에서 상속을 하고 난뒤 슈퍼클래스에서 수정 시 서브클래스는 작동하지 않을 수 있다. 코드를 변경할 때 그 변경이 문제없을지 판단하기가 어려운 경우가 있을 수 있다.
+    - 다이아몬드 문제 - 일부 언어는 다중 상속을 지원하는데, 여러 슈퍼클래스에서 나온 동일한 함수의 각각 다른 버전 중 어떤 것을 상속해야 하는지 모호한 경우
+    - 문제가 있는 계층 구조 - 날아다니는 차는 Car 클래스와 Aircraft 클래스 둘다 상속할 수 없기에 계층 구조에서 문제가 발생한다.
+        - 인터페이스을 사용해 계층 구조를 정의
+        - 구성을 사용하여 코드를 재사용
