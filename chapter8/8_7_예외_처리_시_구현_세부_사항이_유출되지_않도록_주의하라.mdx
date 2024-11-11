@@ -99,6 +99,8 @@ class ModelBasedScorer implements TextImportanceScorer {
         throws TextImportanceScorerException {
         try {
             return model.predict(text) >= MODEL_THRESHOLD;
+        } catch (PredictionModelException e) { 
+            throw new TextImportanceScorerException(e);
         }
     }
 }
