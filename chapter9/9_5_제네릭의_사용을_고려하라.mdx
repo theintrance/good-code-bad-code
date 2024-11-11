@@ -1,0 +1,105 @@
+---
+title: '제네릭의 사용을 고려하라'
+author: 'bayernmuller'
+---
+
+* Generic (Template) 문법은 타입을 자유롭게 사용할 수 있도록 하는 문법이다.
+
+```java
+List<String> strings = ["FC", "Bayern", "The Best"];
+List<Integer> numbers = [1, 2, 3];
+```
+
+```cpp
+std::vector<std::string> strings = {"FC", "Bayern", "The Best"};
+std::vector<int> numbers = {1, 2, 3};
+```
+
+### 9.5.1 특정 유형에 의존하면 일반화를 제한하게 된다.
+
+```java incorrect
+class RandomizedQueue {
+    private final List<String> items;
+
+    void add(String item) {
+        items.add(item);
+    }
+
+    String? pop() {
+        if (items.isEmpty()) {
+            return null;
+        }
+        int randomIndex = Math.randomInt(0, items.size());
+        items.swap(randomIndex, items.size() - 1);
+        return items.removeLast();
+    }
+}
+```
+
+* 이 코드에서는 `List<String>` 에만 동작하도록 제한되어있다.
+* 만약 `List<Int>` 를 사용하고 싶다면, 새로운 클래스를 만들어야 한다.
+
+### 9.5.2 해결책: 제네릭을 사용하라
+
+```java correct
+class RandomizedQueue<T> {
+    private final List<T> items;
+
+    void add(T item) {
+        items.add(item);
+    }
+
+    T? pop() {
+        if (items.isEmpty()) {
+            return null;
+        }
+        int randomIndex = Math.randomInt(0, items.size());
+        items.swap(randomIndex, items.size() - 1);
+        return items.removeLast();
+    }
+}
+```
+
+* 이제 `RandomizedQueue` 는 어떤 타입이든 사용할 수 있다.
+
+```java
+RandomizedQueue<String> stringQueue = new RandomizedQueue<>();
+RandomizedQueue<Integer> numberQueue = new RandomizedQueue<>();
+RandomizedQueue<Picture> pictureQueue = new RandomizedQueue<>();
+```
+
+##### Jayden: 정말 사용해도 되는지 잘 생각해야한다.
+
+* C++ 의 경우 template 을 사용할 떄에 몇가지 단점이 있다.
+
+1. 컴파일 시간이 늘어난다.
+2. 구현이 노출된다.
+3. 디버깅이 어렵다.
+
+* 템플릿은 기본적으로 code generation 된다.
+
+```cpp
+template<typename T>
+void print(T value) {
+    std::cout << value << std::endl;
+}
+
+print(1);
+print("Hello");
+```
+* 이 코드는 컴파일 되면 아래처럼 사용처에 따라 함수가 생성된다.
+
+```cpp
+void print(int value) {
+    std::cout << value << std::endl;
+}
+
+void print(const char* value) {
+    std::cout << value << std::endl;
+}
+```
+
+* 이렇게 동작할 수 밖에 없으니, 컴파일 타임도 늘어나고 구현이 노출된다.
+* .h 에 template class 를 선언하고 .cpp 에 구현을 하면 컴파일 에러가 발생한다.
+* code-gen 방식이기 때문에, 먼저 라이브러리로 빌드되면 코드를 생성할 수 없기 때문이다.
+* 템플릿이 유연성을 제공하지만, 불필요하게 사용하면 코드 복잡성과 컴파일 시간을 증가시킬 수 있으니 필요성에 따라 선택해야 한다.
