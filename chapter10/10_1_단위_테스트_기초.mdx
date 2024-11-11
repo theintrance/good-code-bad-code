@@ -1,0 +1,46 @@
+---
+title: 단위 테스트 기초
+author: bayernmuller
+---
+
+* **Unit Test**: 작성한 코드를 Unit 단위로 실제로 실행시켜 보는 것
+* Unit 은 함수가 될 수도, 클래스가 될 수도, 모듈이 될 수도 있다.
+    * 어디서부터 어디까지가 한 단위인지는 정의되지 않지만, 그렇게 중요하지 않다.
+    * 단위의 기준을 잘 세우고 적당한 코드 커버리지를 가지고 팀에 맞게 테스트 코드를 작성하면 된다.
+
+
+* 용어 정리
+    * **테스트 중인 코드 (code under test, CUT)**: 테스트 하고자 하는 코드
+    * **테스트 코드 (test code)**: 테스트 하는 코드
+        * `Game.cpp` (CUT) 에 대한 테스트 코드는 `GameTest.cpp` 가 될 수 있다.
+
+    * **테스트 케이스 (test case)**: 테스트 코드 내에서의 테스트 시나리오
+        1. **준비 (arrange/given)**: 테스트를 위한 준비 작업
+            * Mocking
+            * DI
+            * 테스트 데이터 생성
+        2. **실행 (act/when)**: 테스트 케이스 실행
+        3. **단언 (assert/then)**: 테스트 결과 확인
+    * **테스트 러너 (test runner)**: 테스트 코드를 실행하는 프로그램
+
+* 테스트 코드는 중요하다.
+    * 이건 TDD 와 관련된 이야기가 아님, 테스트를 먼저 작성하던, 테스트 코드를 나중에 작성하던 상관없이 테스트 코드는 중요하다.
+
+##### Jayden: 구글에서 제공하는 C++ unit test 라이브러리: Google Test
+
+* [Google Test](https://github.com/google/googletest)
+
+```cpp
+#include "gtest/gtest.h"
+
+TEST(GameTest, AddScore_InitialValue) {
+    Game game;
+    EXPECT_EQ(game.getScore(), 0); // 초기값 테스트
+}
+
+TEST(GameTest, AddScore_LargeValue) {
+    Game game;
+    game.addScore(1000000);
+    EXPECT_EQ(game.getScore(), 1000000); // 큰 값 테스트
+}
+```
