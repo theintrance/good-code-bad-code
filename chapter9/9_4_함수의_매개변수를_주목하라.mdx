@@ -1,0 +1,56 @@
+---
+title: '함수의 매개변수를 주목하라'
+author: 'bayernmuller'
+---
+
+### 9.4.1 필요 이상으로 매개변수를 받는 함수는 재사용하기 어려울 수 있다.
+
+```java incorrect
+class TextOptions {
+    private final Color color;
+    private final Font font;
+    private final int size;
+    private final boolean isBold;
+
+    TextOptions(Color color, Font font, int size, boolean isBold) {
+        this.color = color;
+        this.font = font;
+        this.size = size;
+        this.isBold = isBold;
+    }
+    ...
+    Color getTextColor() {
+        return color;
+    }
+}
+
+class TextBox {
+    ...
+    void setTextColor(TextOptions options) {
+        textContainer.setStyleProperty("color", options.getTextColor().asHexRgb());
+    }
+}
+```
+
+* 이 코드에서 TextBox 의 글자 색상을 바꾸기 위해 `setTextColor` 를 호출할 때 마다 `TextOptions` 객체를 생성해야 한다.
+* 비효율적이고, 함수에 필요 없는 값들 (size, font, isBold) 도 전달되고 있다.
+* 만약 아무것도 없는 상태에서 색상만 바꾸고싶다면, `TextOptions` 객체를 만들어야한다.
+
+```java incorrect
+textBox.setTextColor(new TextOptions(Color.RED, null, 0, false)); // 다른 값들은 필요없음
+```
+
+### 9.4.2 해결책: 함수는 필요한 것만 매개변수로 받도록 하라
+
+```java correct
+class TextBox {
+    ...
+    void setTextColor(Color color) {
+        textContainer.setStyleProperty("color", color.asHexRgb());
+    }
+}
+...
+textBox.setTextColor(Color.RED); // 필요한 값만 전달
+```
+
+* 필요한 값만 전달하여 코드가 간단해지고 이해하기 쉬워졌다.
