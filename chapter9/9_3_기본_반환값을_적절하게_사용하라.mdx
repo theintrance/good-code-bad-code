@@ -1,0 +1,72 @@
+---
+title: '기본 반환값을 적절하게 사용하라'
+author: 'bayernmuller'
+---
+
+* 모든 객체의 인스턴스를 만들 때 마다 값을 주어 초기화 해야한다면 불편하니, 객체에 기본값을 줄 수 있다.
+* 단 아래를 고려하자
+    1. 어떤 기본값이 합리적인 값인지
+    2. 더 상위 계층의 코드는 기본값을 받던지 명시적으로 설정된 값을 받든지 상관하지 않는다.
+
+### 9.3.1 낮은 층위의 코드의 기본 반환값은 재사용성을 해칠 수 있다.
+
+```java incorrect
+class UserDocumentSettings {
+    private final Font? font;
+
+    Font? getPreferredFont() {
+        if (font != null) {
+            return font;
+        }
+        return Font.ARIAL;
+    }
+}
+```
+
+* 위 코드는 기본 글꼴로 `ARIAL` 을 원치 않을 때 재사용 할 수 없는 코드이다.
+* 특정 조직에 대해 기본 글꼴을 설정하고 싶을 때도 사용할 수 없ㄷ가.
+
+### 9.3.2 해결책: 상위 수준의 코드에서 기본값을 제공하라
+
+```java correct
+class UserDocumentSettings {
+    private final Font? font;
+
+    Font? getPreferredFont() {
+        return font
+    }
+}
+```
+
+* 그냥 값이 없을 때 `Null` 을 반환한다.
+* 이는 상위 레벨에서 원하는 방식으로 처리할 수 있는 여지를 준다.
+
+```java correct
+class DefaultDocumentSettings {
+    ...
+    Font getDefaultFont() {
+        return Font.ARIAL;
+    }
+}
+
+class DocumentSettings {
+    private final UserDocumentSettings userSettings;
+    private final DefaultDocumentSettings defaultSettings;
+
+    DocumentSettings(
+        UserDocumentSettings userSettings,
+        DefaultDocumentSettings defaultSettings
+    ) {
+        this.userSettings = userSettings;
+        this.defaultSettings = defaultSettings;
+    }
+
+    Font getPreferredFont() {
+        Font? userFont = userSettings.getPreferredFont();
+        return userFont ?? defaultSettings.getDefaultFont();
+    }
+}
+```
+
+* `DefaultDocumentSettings` 는 기본값을 제공하는 클래스이다.
+* `DocumentSettings` 에서 이를 의존성 주입으로 받아 확장성을 늘렸다.
