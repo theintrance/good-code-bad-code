@@ -1,0 +1,115 @@
+---
+title: '전역 상태를 주의하라'
+author: 'hyunwok'
+---
+
+### 9.2.1 전역 상태를 갖는 코드는 재사용하기에 안전하지 않을 수 있다
+```java 
+class ShoppingBasket {
+    private static List items = [];
+
+    static void addItem(Item item) {
+        items.add(item);
+    }
+
+    static List getItems() {
+        return List.copyOf(items);
+    }
+}
+
+// ShoppingBasket를 사용하는 클래스
+class ViewItemWidget {
+    private final Item item;
+
+    ViewItemWidget(Item item) {
+        this.item = item;
+    }
+
+    void addItemToBasket() {
+        ShoppingBasket.addItem(item);
+    }
+}
+
+class ViewBasketWidget {
+    void displayItems() {
+        List items = ShoppingBasket.getItems();
+        // Further code to display items
+    }
+}
+```
+
+#### 누군가가 이 코드를 재사용하려고 하면 어떻게 되는가? 
+- 이 어플이 사용자의 장치에서만 실행된다면, 기본적인 기능에 대한 가정이 유지되고 모든 것이 잘 작동할 것이다.
+- 허나 이 가정은 취약하기에, 다음과 같은 이유로 깨질 수 있다.
+    - 장바구니 내용을 서버에 저장하기로 결정한 뒤 서버단 코드에서 ShoppingBasket 클래스를 사용하기 시작한다.
+        - 서버의 한 인스턴스는 다른 많은 사용자로부터의 요청을 처리하기에 인스턴스에 장바구니가 많이 존재한다.
+    - 나중을 위해 장바구니 항목을 저장할 수 있는 기능을 추가한다.
+        - 현재 활성 장바구니뿐만 아니라 나중을 위해 저장되는 장바구니까지 처리해야 한다. 
+    - 정상적인 재고 외에 신선한 농산물을 판매하기 시작하는데, 이것은 완전히 다른 공급자와 배송 매커님즈을 사용하기 떄문에 별도의 장바구니로 처리해야 한다.
+- 원래의 가정이 취약하고 어느 시점에 이르면 어떤 식으로든 그 가정을 꺠트리는 그럴듯한 시나리오들이 충분히 있다는 것이다.
+
+```
+ShoppingBasket
+├── static List<Item> items  (전역변수)
+│
+└── 사용하는 코드
+    ├── 원래의 코드
+    └── 새로운 코드
+```
+
+### 9.2.2 해결책: 공유 상태에 의존성 주입하라
+- items를 인스턴스 변수로 수정하여, 클래스에 대한 각각의 인스턴스에서 다른 항목을 가질 수 있다.
+
+```java correct
+class ShoppingBasket {
+    private final List items = []; // 정적이 아닌 인스턴스 변수
+
+    void addItem(Item item) {           // 정적이 아닌 멤버 함수
+        items.add(item);
+    }
+
+    void List getItems() {        // 정적이 아닌 멤버 함수
+        return List.copyOf(items);
+    }
+}
+```
+
+- ShoppingBasket의 인스턴스를 필요한 클래스에 주입하는 것으로 어떤 코드에서 같은 장바구니를 공유하고 어떤 코드에서 다른 장바구니를 사용하는지 제어할 수 있다.
+
+```java correct
+class ViewItemWidget {
+    private final Item item;
+    private final ShoppingBasket basket;
+
+    ViewItemWidget(Item item, ShoppingBasket basket) {
+        this.item = item;
+        this.basket = basket;
+    }
+    ...
+    void addItemToBasket() {
+        basket.addItem(item); // 의존성이 주입된 ShoppingBasket
+    }
+}
+
+class ViewBasketWidget {
+    private final ShoppingBasket basket;
+
+    ViewBasketWidget(ShoppingBasket basket) {
+        this.basket = basket;
+    }
+
+    void displayItems() {
+        List items = basket.getItems(); // 주입된 ShoppingBasket 인스턴스에 대해 호출된다.
+        ...
+    }
+}
+```
+
+- 코드 사용의 예시
+```java correct
+ShoppingBasket normalBasket = new ShoppingBasket();
+ViewBasketWidget normalBasketWidget = new ViewBasketWidget(normalBasket);
+
+ShoppingBasket freshBasket = new ShoppingBasket();
+ViewBasketWidget freshBasketWidget = new ViewBasketWidget(freshBasket);
+```

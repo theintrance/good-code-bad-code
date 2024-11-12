@@ -1,0 +1,124 @@
+---
+title: '예외 처리 시 구현 세부 사항이 유출되지 않도록 주의하라'
+author: 'hyunwok'
+---
+
+- 구현 세부 정보가 유출될 수 있는 일반적인 경우는 예외가 발생할 때이다.
+- 호출하는 쪽에서 복구하고자 하는 오류에 대해 비검사 예외를 사용하는 경우, 예외 처리 시 알아채지 못하게 구현 세부 정보가 유출될 수 있다.
+
+### 8.7.1 예외 처리 시 구현 세부 사항이 유출되면 문제가 될 수 있다 
+- 비검사 예외를 사용한다면 어느 위치에서 예외를 처리하는지에 대한 그 어떠한 것도 컴파일러에 의해 강제되지 않는다.
+- 만약 개발자가 문서화하는 것을 잊어버린다면 코드 계약을 통해 전혀 전달되지 않는다. 
+
+```java incorrect
+class TextSummarizer {
+    private final TextImportanceScorer importanceScorer;
+    ...
+    
+    String summarizeText(String text) {
+        return paragraphFinder.find(text)
+            .filter(paragraph -> importanceScorer.isImportant(paragraph))
+            .join("\n\n");
+    }
+}
+
+interface TextImportanceScorer {
+    Boolean isImportant(String text);
+}
+
+class ModelBasedScorer implements TextImportanceScorer {
+    ...
+    /**
+     * @throws PredictionModelException 예측 모델을 실행하는 동안 에러가 발생하는 경우
+     */
+     // 발생 가능한 비검사 예외
+    override Boolean isImportant(String text) {
+        return model.predict(text) >= MODEL_THRESHOLD;
+    }
+}
+```
+
+- PredictionModelException으로 인해 코드가 잘 작동되지 않는다는 점을 깨닫고 아래와 같은 예외 처리 코드를 추가로 작성한다.
+
+```java incorrect
+void updateTextSummary(UserInterface ui) {
+    String userText = ui.getUserText();
+    try {
+        String summary = textSummarizer.summarizeText(userText);
+        ui.getSummaryField().setValue(summary);
+    } catch (PredictionModelException e) { // TextImportanceScorer를 구현한 다른 클래스의 오류는 잡아내지 못함
+        ui.getSummaryField().setError("Unable to summarize text");
+    }
+}
+```
+
+### 8.7.2 해결책: 추상화 계층에 적절한 예외를 만들라 
+- 하위 계층의 오류를 현재 계층에 적합한 오류 유형으로 감싸서 각 추상화 계층을 반영하는 오류 유형만을 드러내는 것이 이상적이다. 
+
+```java correct
+class TextSummarizerException extends Exception {
+    ...
+    TextSummarizerException(Throwable cause) { ... }
+    // 기존 예외를 감싸기 위해 생성자를 통해 예외를 받음
+    ...
+}
+
+class TextSummarizer {
+    private final TextImportanceScorer importanceScorer;
+    ...
+    String summarizeText(String text)
+        throws TextSummarizerException {
+        try {
+            return paragraphFinder.find(text)
+                .filter(paragraph =>
+                    importanceScorer.isImportant(paragraph))
+                .join("\n\n");
+        } catch (TextImportanceScorerException e) {
+            throw new TextSummarizerException(e);
+            // 새 예외를 감싸서 다시 발생
+        }
+    }
+}
+
+class TextImportanceScorerException extends Exception {
+    // 텍스트의 점수 계산과 관련 있는 오류를 전달하기 위한 예외
+    ...
+    TextImportanceScorerException(Throwable cause) { ... }
+    ...
+}
+
+interface TextImportanceScorer {
+    Boolean isImportant(String text)
+        throws TextImportanceScorerException; 
+        // 인터페이스는 추상화 계층에 의해 노출되는 오류 유형을 정의
+}
+
+class ModelBasedScorer implements TextImportanceScorer {
+    ...
+    Boolean isImportant(String text)
+        throws TextImportanceScorerException {
+        try {
+            return model.predict(text) >= MODEL_THRESHOLD;
+        } catch (PredictionModelException e) { 
+            throw new TextImportanceScorerException(e);
+        }
+    }
+}
+```
+
+- TextSummarizer 클래스를 사용하는 개발자는 TextSummarizerException만 처리하면 됨
+- TextSummarizer 클래스의 구현 세부 정보를 알 필요가 없어지고, 변동 사항에도 코드의 변동 사항은 생기지 않을 수 있다.
+
+```java correct
+void updateTextSummary(UserInterface ui) {
+    String userText = ui.getUserText();
+    try {
+        String summary = textSummarizer.summarizeText(userText);
+        ui.getSummaryField().setValue(summary);
+    } catch (TextSummarizerException e) {
+        ui.getSummaryField().setError("Unable to summarize text");
+    }
+}
+```
+
+- 오류를 복구하지 않을 것이라는 게 확실하다면, 구현 세부 정보 유출은 큰 문제가 되지 않지만, 만약 복구를 원하는 오류가 있다면 추상화 계층에 적합한지 확인하는 것이 중요하다.

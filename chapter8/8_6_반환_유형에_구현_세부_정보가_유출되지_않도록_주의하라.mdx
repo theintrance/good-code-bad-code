@@ -1,0 +1,70 @@
+---
+title: '반환 유형에 구현 세부 정보가 유출되지 않도록 주의하라'
+author: 'hyunwok'
+---
+
+- 간결한 추상화 계층을 가지려면 각 계층의 구현 세부 정보가 유출되지 않아야 하는데, 유출된다면 향후 수정이나 재설정이 매우 어려워질 수 있다.
+- 코드에서 구현 세부 정보를 유출하는 일반적인 형태 중 하나는 해당 세부 정보와 밀접하게 연결된 유형을 반환하는 것이다.
+
+### 8.6.1 반환 형식에 구현 세부 사항이 유출될 경우 문제가 될 수 있다
+```java incorrect
+class ProfilePictureService {
+    private final HttpFetcher httpFetcher; // HttpFetcher를 사용해 구현됨
+    ...
+    ProfilePictureResult getProfilePicture(Int64 userId) { ... } // ProfilePictureResult의 인스턴스 반환
+}
+
+class ProfilePictureResult {
+    ...
+    /**
+     * 프로필 사진에 대한 요청이 성공인지 여부를 나타낸다.
+     */
+     HttpResponse.Status getStatus() { ... }
+
+    /**
+    * 프로필 사진이 발견된 경우 그 사진의 이미지 데이터를
+    */
+    HttpResponse.Payload? getImageData() { ... }
+}
+```
+
+- HttpFetcher를 반환 유형을 통해 간접적으로 유출하여 생기는 문제점 존재 
+    - 다른 개발자가 ProfilePictureService 클래스를 사용하려면 HttpResponse와 관련된 여러 개념을 처리해야 한다.
+    - ProfilePictureService의 함수를 호출하는 모든 코드는 HttpResponse와 관련된 유형을 사용하고 있기에 요구사항이 변경된다면 변경되는 코드 또한 너무 많아진다.
+
+### 8.6.2 해결책: 추상화 계층에 적합한 유형을 반환하라 
+- 노출해야 할 개념을 최소화하기 위하여, 적합한 유형을 통해 반환.
+- 위 코드에서 필요한 최소한의 개념
+    - 요청이 성공하거나 다음 이유 중 하나로 인해 실패할 수 있다.
+        - 사용자가 존재하지 않는다.
+        - 서버에 연결할 수 없는 등의 일시적인 오류가 발생했다.
+    - 프로필 사진을 나타내는 데이터의 바이트 값
+
+```java correct
+class ProfilePictureService {
+    private final HttpFetcher httpFetcher;
+    ...
+    
+    ProfilePictureResult getProfilePicture(Int64 userId) { ... }
+}
+
+class ProfilePictureResult {
+    ...
+    
+    enum Status {
+        SUCCESS,
+        USER_DOES_NOT_EXIST,
+        OTHER_ERROR,
+    }
+    
+    /**
+     * 프로필 사진에 대한 요청이 성공인지 여부를 나타낸다.
+     */
+    Status getStatus() { ... }
+
+    /**
+     * 프로필 사진이 발견된 경우 그 사진의 이미지 데이터를 반환한다.
+     */
+    List<Byte>? getImageData() { ... }
+}
+```
