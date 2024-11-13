@@ -1,0 +1,119 @@
+---
+title: 좋은 단위 테스트는 어떻게 작성할 수 있는가?
+author
+
+---
+
+### 10.2.1 훼손의 정확한 감지
+
+* 단위 테스트의 주된 목표는 코드가 훼손되지 않았는지 확인하는 것이다.
+    * 단위 테스트는 코드에 대한 초기 신뢰를 준다.
+        * 코드 베이스에 변경사항을 머지 하기 전 테스트 하므로써 코드 베이스에 대한 신뢰를 줄 수 있다.
+    * 미래의 훼손을 막아준다.
+        * 코드 혹은 다른 이벤트로 인해 코드가 동작하지 않는 것을 **Regression** 이라고 하고, 이것을 탐지할 목적으로 테스트 하는것을 **Regression Test** 라고 한다.
+
+* 당연하지만 테스트 대상 코드가 실제로 훼손된 경우에만 테스트가 실패해야한다.
+* 테스트 대상 코드가 정상임에도 때로는 Pass 하고 때로는 Fail 하는 경우가 있다.
+    * 이를 **Flaky Test** 라고 한다. 발생 원인은 여러가지가 있을 수 있다.
+        * 외부 의존성: 네트워크 요청, 데이터베이스 의존성 등.
+        * 비결정적 로직: 랜덤 값, 시간 의존성.
+        * 테스트 환경 차이: OS, 파일 경로, 권한 문제 등.
+    * 이처럼 테스트 대상 코드가 정상임에도 불구하고 외부 요인으로 인해 테스트가 실패하는 경우가 없어야 한다.
+
+### 10.2.2 세부 구현 사항에 독립적
+
+* 개발자가 코드 베이스에 가할 수 있는 변경:
+    * **Feature Changes**: 새로운 기능 추가, 버그 수정, 에러 처리 등
+    * **Refactoring**: 큰 함수를 작은 함수로 분할 하는 등의 구조적 변경, 외부에서 보이는 동작이 변경되면 안됨.
+
+* Feature Changes 의 경우 기능이 수정된 것이므로 테스트 코드도 변경되어야 한다.
+* Refactoring 의 경우 외부에서 보이는 동작이 변경되지 않아야 하므로 테스트 코드는 유지되어야 한다.
+
+```cpp
+std::vector<std::string> get_user_names(const Database& db, const std::vector<std::uint64_t>& user_ids) {
+    std::vector<std::string> names;
+    for (const auto& user_id : user_ids) {
+        auto result = db.query("SELECT name FROM users WHERE id = $1", user_id);
+        names.push_back(result.front().get<std::string>("name"));
+    }
+    return names;
+}
+
+TEST(UserTest, GetUserNames) {
+    std::vector<std::uint64_t> user_ids = {1, 2, 3};
+    std::vector<std::string> expected_names = {"Alice", "Bob", "Charlie"};
+
+    MockDatabase db;
+    std::vector<std::string> actual_names = get_user_names(db, user_ids);
+    EXPECT_EQ(actual_names, expected_names);
+}
+```
+
+* 위 코드를 Refactoring 하면..
+
+```cpp
+std::string get_user_name(const Database& db, const std::uint64_t user_id) {
+    auto result = db.query("SELECT name FROM users WHERE id = $1", user_id);
+    return result.front().get<std::string>("name");
+}
+
+std::vector<std::string> get_user_names(const Database& db, const std::vector<std::uint64_t>& user_ids) {
+    std::vector<std::string> names;
+    for (const auto& user_id : user_ids) {
+        names.push_back(get_user_name(db, user_id));
+    }
+    return names;
+}
+
+TEST(UserTest, GetUserNames) {
+    std::vector<std::uint64_t> user_ids = {1, 2, 3};
+    std::vector<std::string> expected_names = {"Alice", "Bob", "Charlie"};
+
+    MockDatabase db;
+    db.add_mock_data("users", {{1, "Alice"}, {2, "Bob"}, {3, "Charlie"}});
+
+    std::vector<std::string> actual_names = get_user_names(db, user_ids);
+    EXPECT_EQ(actual_names, expected_names);
+}
+```
+
+* 내부 Refactoring 의 경우 외부에서 보이는 동작이 변경되지 않아야 하므로 테스트 코드도 유지되어야 한다.
+
+* 기능 변경과 리팩터링은 함께 하면 안 된다.
+    * 잠재적 문제의 원인이 기능 변경 때문인지, 리팩터링 때문인지 판단하기 어렵다.
+
+### 10.2.3 잘 설명되는 실패
+
+* 문제가 발생했을 때 어떤식으로 개발자에게 전달할지 고려해야 한다.
+    * 테스트 실패 시 출력되는 메시지가 명확하고 충분히 자세해야 한다.
+
+```text incorrect
+Test case testGetEvents failed:
+Expected: [Event@fab92b, Event@fab92b]
+But was actually: [Event@123456, Event@68d456]
+```
+* 이 출력 메세지는 어떤 부분이 왜 실패했는지 알기 어렵다.
+
+```text correct
+Test case testGetEvents_inChronologicalOrder failed:
+Expected:
+    [Spaceflight, April 12, 2024, SpaceX Starship, April 12, 2024]
+But was actually:
+    [SpaceX Starship, April 12, 2024, Spaceflight, April 12, 2024]
+```
+
+* 이 출력 메세지는 어떤 부분이 왜 실패했는지 알기 쉽다.
+* 하나의 테스트 케이스는 한 가지 사항만 검사해야 한다.
+* 테스트 케이스에 대해 서술적인 이름을 사용해야 한다.
+
+### 10.2.4 이해 가능한 테스트 코드
+
+* Feature Changes 가 있을 때는 테스트 코드도 변경해야 할 수 있고, 테스트 코드를 수정하는 것도 주의해서 변경해야한다.
+* 개발자가 자신이 변경한 사항이 원하는 동작에만 영향을 미친다른 확신을 가지려면 테스트의 어느 부분에 영향을 미치고 있는지, 테스트 코드 수정이 필요한지 여부를 알 수 있어야 한다.
+* 테스트 코드는 그 자체로 코드 사용법이 될 수도 있다.
+    * 코드를 실제로 사용하며 테스트를 진행하기 때문에, 테스트 대상 코드를 처음 보는 사람은 테스트 코드를 통해 코드 사용법을 익힐 수 있다.
+* 즉 테스트 코드는 이해하기 쉬워야 한다.
+
+### 10.2.5 쉽고 빠른 진행
+
+* 단위 테스트에 너무 많은 시간이 걸린다면 진행 속도가 느려지고, 개발 도중 수없이 단위테스트를 진행해야 하는데 작업에 차질이 생기게 된다.
