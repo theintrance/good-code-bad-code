@@ -1,0 +1,322 @@
+---
+title: '테스트 더블'
+author: 'hyunwok'
+---
+
+- 코드의 모든 동작을 완벽하게 테스트하기 위해 종종 입력을 설정하고 Side Effect를 검증해야 하지만, 테스트에서 의존성을 실제로 사용하는 것이 항상 가능하거나 바람직한 것만은 아니다.
+- 의존성을 실제로 사용하는 것에 대안으로 테스트 더블을 사용하여 테스트에 더 적합하게 사용할 수 있도록 만들어진다.
+
+### 10.4.1 테스트 더블을 사용하는 이유 
+
+#### 테스트 단순화 
+- 의존성 자체에서 많은 매개변수와 하위 의존성을 설정해야 할 수도 있다.
+- 설정 외에도 하위 의존성에서 원하는 Side Effect가 발생했는지 검증해야 할 수도 있다. 
+    - 설정을 위한 코드가 많아지고, 수많은 구현 세부 정보와 밀접하게 연결될 수도 있다.
+```txt incorrect
+┌───────────────┐       ┌─────────────────┐
+│   테스트 코드    │ ───▶  │ 테스트 대상 코드    │
+└───────────────┘       └─────────────────┘
+     │                           │
+     │                           ▼
+     │                   ┌────────────────┐
+     ├─────────────────▶ │     의존성       │
+     │                   └────────────────┘
+     │                           │
+     │                           ┌────────────────────────────┐
+     │                           ▼                            ▼
+     │                   ┌────────────────┐         ┌────────────────┐
+     ├─────────────────▶ │  하위 의존성 1    │         │  하위 의존성 2   │
+     │                   └────────┬───────┘         └────────┬───────┘
+     │                            │                           │
+     │              ┌─────────────┴────────────┐    ┌─────────┴─────────┐
+     │              ▼                          ▼    ▼                   ▼
+     │     ┌────────────────┐     ┌────────────────┐        ┌────────────────┐
+     └───▶ │   더 하위 1-1    │     │   더 하위 1-2   │        │   더 하위 2-1    │
+           └────────────────┘     └────────────────┘        └────────────────┘
+```
+
+- 테스트 더블을 사용하면 테스트를 더 빠르게 실행할 수 있고, 더 간단해진다
+
+```txt correct
+┌───────────────┐       ┌─────────────────┐
+│   테스트 코드    │ ───▶  │ 테스트 대상 코드    │
+└───────────────┘       └─────────────────┘
+     │                           │
+     │                           ▼
+     │                   ┌────────────────┐
+     └─────────────────▶ │  Dependency의   │
+                         │   테스트 더블     │ 
+                         └────────────────┘
+```
+
+#### 테스트로부터 외부 세계 보호 
+- 결제를 처리하는 시스템을 사용하고 고객의 은행게좌에서 돈을 인출하는 코드를 테스트한다고 가정해 보자.
+- 코드가 실제로 실행되면 실제 계좌에서 돈이 실제로 인출될 것이고, 이것은 큰 문제를 일으킬 수 있기에 절대 이렇게 수행되면 안 된다.
+
+```txt incorrect
+┌───────────────┐      
+│   테스트 코드    │ ───────────────┐ 
+└───────────────┘                │
+     │                           │
+     ▼                           ▼
+ ┌────────────────┐       ┌────────────────┐        ┌─────────────────────┐
+ │ 테스트 대상 코드   │ ────▶ │  BankAccount   │ ────▶  │ 실제 은행의 백엔드 시스템 │
+ └────────────────┘       └────────────────┘        └─────────────────────┘                   
+```
+
+- 테스트 더블을 사용하면 테스트로부터 외부 세계를 보호할 수 있다. 
+
+```txt correct
+┌───────────────┐                               │ 
+│   테스트 코드    │ ───────────────┐              │
+└───────────────┘                │              │
+     │                           │              │
+     ▼                           ▼              │
+┌────────────────┐       ┌────────────────┐     │    ┌─────────────────────┐
+│ 테스트 대상 코드   │ ────▶ │  BankAccount의  │     │    │ 실제 은행의 백엔드 시스템 │
+│                │       │   테스트 더블     │     │    │                     │ 
+└────────────────┘       └────────────────┘     │    └─────────────────────┘   
+```
+
+- 테스트 값이 실제 서버에 표시된다면 발생할 수 있는 문제들
+    - 사용자는 이상하고 혼란스러운 값을 볼 수 있다.
+    - 모니터링 및 로깅에 영향을 미칠 수 있다. 
+
+#### 외부로부터 테스트 보호
+- 위의 동일한 상태에서 잔액을 가져오는 테스트를 진행해 본다.
+- 실제 은행에서 돈을 입금하거나 인출하게 된다면 값이 변경이 되고, 이것은 테스트의 실패로 이어진다.
+
+### 10.4.2 목 
+- 목은 멤버 함수가 호출될 때 인수에 제공되는 값을 기록하는 것 외에는 어떠한 일도 수행하지 않는다.
+- 테스트 대상 코드에서 Side Effect를 일으키는 의존성을 시뮬레이션하는데 가장 유용하다.
+```java
+class PaymentManager {
+    ...
+
+    PaymentResult settleInvoice(
+        BankAccount customerBankAccount, 
+        Invoice invoice) {
+        customerBankAccount.debit(invoice.getBalance()); // 계좌로부터 청구서의 잔액만큼 인출, 테스트해야 하는 동작
+        return PaymentResult.paid(invoice.getId());
+    }
+}
+```
+
+- BankAccount 인터페이스 구현
+
+```java incorrect
+interface BankAccount {
+    void debit(MonetaryAmount amount);
+    void credit(MonetaryAmount amount);
+    MonetaryAmount getBalance();
+}
+
+class BankAccountImpl implements BankAccount {
+    private final BankingBackend backend; // 실제 계좌와 연결
+    ...
+    override void debit(MonetaryAmount amount) { ... }
+    override void credit(MonetaryAmount amount) { ... }
+    override MonetaryAmount getBalance() { ... }
+}
+```
+
+- 목을 사용하는 테스트 케이스
+
+```java correct
+void testSettleInvoice_accountDebited() {
+    BankAccount mockAccount = createMock(BankAccount); // 목 객체 생성
+    MonetaryAmount invoiceBalance = new MonetaryAmount(5.0, Currency.USD);
+    Invoice invoice = new Invoice(invoiceBalance, "test-id");
+    PaymentManager paymentManager = new PaymentManager();
+
+    paymentManager.settleInvoice(mockAccount, invoice);
+
+    verifyThat(mockAccount.debit)
+        .wasCalledOnce()
+        .withArguments(invoiceBalance);
+}
+```
+
+- 테스트로부터 외부 세계를 보호하는 데에는 성공했지만 테스트가 비현실적이고 중요한 버그를 잡지 못할 위험이 있다.
+
+### 10.4.3 스텁
+- 스텁은 함수가 호출되면 미리 정해 놓은 값을 반환함으로써 함수를 시뮬레이션하여 의존성을 시뮬레이션할 수 있다.
+- 목과 스텁은 분명한 차이가 있지만, 보통 목을 말할 때는 둘다를 지칭하고, 특정 멤버 함수를 스텁하는 데만 사용하고자 할 때조차 목을 만들어야 한다.
+
+```java
+class PaymentManager {
+    ...
+
+    PaymentResult settleInvoice(
+        BankAccount customerBankAccount,
+        Invoice invoice) {
+        if (customerBankAccount.getBalance().isLessThan(invoice.getBalance())) {
+            return PaymentResult.insufficientFunds(invoice.getId());
+        }
+        customerBankAccount.debit(invoice.getBalance());
+        return PaymentResult.paid(invoice.getId());
+    }
+}
+```
+
+- 계좌 잔액이 없을 때 추가된 분기 처리에 대한 테스트 케이스
+
+```java correct
+void testSettleInvoice_insufficientFundsCorrectResultReturned() {
+    MonetaryAmount invoiceBalance = new MonetaryAmount(10.0, Currency.USD);
+    Invoice invoice = new Invoice(invoiceBalance, "test-id");
+    BankAccount mockAccount = createMock(BankAccount.class); // 스텁만 필요하지만 BankAccount 목 객체 생성
+    when(mockAccount.getBalance()).thenReturn(new MonetaryAmount(9.99, Currency.USD));
+    PaymentManager paymentManager = new PaymentManager();
+
+    PaymentResult result = paymentManager.settleInvoice(mockAccount, invoice);
+
+    assertThat(result.getStatus()).isEqualTo(INSUFFCIENT_FUNDS);
+}
+```
+
+### 10.4.4 목과 스텁은 문제가 될 수 있다.
+
+#### 목과 스텁은 실제적이지 않은 테스트를 만들 수 있다
+- 예외를 던질 수 있는 실제와는 다르게 함수의 호출만을 기록하기 때문에, 코드의 버그가 발생하지 않을 수 있다. 
+- 개발자가 실제 의존성이 어떻게 동작하는지 이해하지 못하면 목을 설정할 때 실수를 할 가능성이 크다.
+
+```java incorrect
+void testSettleInvoice_negativeInvoiceBalance() {
+    BankAccount mockAccount = createMock(BankAccount.class);
+    MonetaryAmount invoiceBalance = new MonetaryAmount(-5.0, Currency.USD);
+    Invoice invoice = new Invoice(invoiceBalance, "test-id");
+    PaymentManager paymentManager = new PaymentManager();
+
+    paymentManager.settleInvoice(mockAccount, invoice);
+    // 동작이 잘 작동한다.
+
+    verifyThat(mockAccount.debit)
+        .wasCalledOnce()
+        .withArguments(invoiceBalance);
+}
+```
+
+- 실제 코드의 조건
+
+```java 
+interface BankAccount {
+    /**
+     * @throws ArgumentException 0보다 적은 금액으로 호출되는 경우
+     */
+    void debit(MonetaryAmount amount);
+
+    /**
+     * @throws ArgumentException 0보다 적은 금액으로 호출되는 경우
+     */
+    void credit(MonetaryAmount amount);
+
+    ...
+}
+
+interface BankAccount {
+    ...
+
+    /**
+     * @return 가장 가까운 10의 배수로 반내림한 계좌의 잔액
+     * 예를 들어 실제 잔액이 19달러라면 이 함수는 10달러를 반환한다.
+     * 이것은 보안을 위한 것인데 정확한 잔액은 보안 확인을 위한 질문으로
+     * 은행이 사용하기 때문이다.
+     */
+    MonetaryAmount getBalance();
+}
+```
+
+#### 목과 스텁을 사용하면 테스트가 구현 세부 정보에 유착될 수 있다
+- 음수의 값이 들어온다면 입금이라는 가정을 추가하여 코드를 작성
+```java 
+PaymentResult settleInvoice(...) {
+    ...
+    MonetaryAmount balance = invoice.getBalance();
+    if (balance.isPositive()) {
+        customerBankAccount.debit(balance);
+    } else {
+        customerBankAccount.credit(balance.absoluteAmount());
+    }
+    ...
+}
+```
+
+- if-else문의 반복으로 인해 transfer라는 함수로 리팩토링하고 인터페이스에 추가
+
+```java incorrect
+interface BankAccount {
+    ...
+    /**
+     * 지정된 금액을 계좌로 송금한다. 금액이 0보다 적으면
+     * 계좌로부터 인출하는 효과를 갖는다.
+     */
+    void transfer(MonetaryAmount amount);
+}
+
+PaymentResult settleInvoice(...) {
+    ...
+    MonetaryAmount balance = invoice.getBalance();
+    customerBankAccount.transfer(balance.negate());
+    ...
+}
+```
+
+- 기존에 테스트는 debit이나 credit 함수가 호출되는지 확인하는 목을 사용하고 있었고, 이 상황에서는 불리지 않기 때문에 테스트는 실패한다.
+
+### 10.4.5 페이크
+- 페이크는 클래스의 대체 구현체로 테스트에서 안전하게 사용할 수 있다.
+- 외부 시스템과 통신하는 대신 페이크 내의 멤버 변수에 상태를 저장한다. 
+- 페이크의 요점은 코드 계약이 실제 의존성과 동일하기 떄문에 실제 클래스가 특정 입력을 받아들이지 않는다면 페이크도 마찬가지라는 것이다.
+- 멤버 변수를 통해 상태를 추척한다.
+- 페이크 코드 예시 
+```java correct
+class FakeBankAccount implements BankAccount {
+    private MonetaryAmount balance;
+
+    FakeBankAccount(MonetaryAmount startingBalance) {
+        this.balance = startingBalance;
+    }
+
+    override void debit(MonetaryAmount amount) {
+        if (amount.isNegative()) {
+            throw new ArgumentException("액수는 0보다 적을 수 없음");
+        }
+        balance = balance.subtract(amount);
+    }
+
+    override void credit(MonetaryAmount amount) {
+        if (amount.isNegative()) {
+            throw new ArgumentException("액수는 0보다 적을 수 없음");
+        }
+        balance = balance.add(amount);
+    }
+
+    override void transfer(MonetaryAmount amount) {
+        balance.add(amount);
+    }
+
+    override MonetaryAmount getBalance() {
+        return roundDownToNearest10(balance);
+    }
+
+    MonetaryAmount getActualBalance() {
+        return balance;
+    }
+}
+```
+
+#### 페이크로 인해 보다 실질적인 테스트가 이루어질 수 있다
+- 위에서 보았던 목을 사용하여 -5의 값을 더하는 코드는 예외를 발생시키지 않지만, 페이크를 사용한다면 예외를 발생시켜 테스트가 실패한다.
+
+#### 페이크를 사용하면 구현 세부 정보로부터 테스트를 분리할 수 있다
+- 다른 테스트들과는 또 다른 이점은 테스트가 구현 세부 사항에 밀접하게 결합하는 정도가 덜 하다는 것이다.
+- 구현 세부 사항 대신 최종 계정 잔액이 정확한지 확인한다.
+    - 결과가 같다면 테스트가 통과되기에, 구현 세부 사항과 관련해서 훨씬 더 독립적이다.
+    - 동작을 변경하지 않는 한 테스트는 실패하지 않는다.
+
+### 10.4.6 목에 대한 의견
+- **목 찬성론자**(런던 학파) : 목과 스텁을 사용해서 의존성을 실제로 사용하는 것을 피해야 한다.
+- **고전주의자**(디트로이트 학파) : 목과 스텁은 최소한으로 사용되어야 하고 개발자는 테스트에서 의존성을 실제로 사용하는 것을 최우선으로 해야 한다.
+
+- 목 접근법은 시험 대상 코드가 **어떻게** 하는가를 확인하는 반면, 고전주의 접근법은 코드를 실행하는 최종 결과가 **무엇인지** 확인하는 경향이 있다.
