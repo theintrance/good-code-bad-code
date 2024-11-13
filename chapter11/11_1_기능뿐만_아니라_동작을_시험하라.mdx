@@ -12,10 +12,10 @@ author: 'hyunwok'
     - 헬퍼 함수를 사용해 자격이 있는 고객에 대한 최대 대출 금액을 결정하는데, 이 값은 연간 소득에서 연간 지출액을 뺀 값에 10을 곱한 값으로 계산된다.
 
 ```java 
-class MortgageAssessor {
+class MortgageAccessor {
     private const Double MORTGAGE_MULTIPLIER = 10.0;
 
-    MortgageDecision assess(Customer customer) {
+    MortgageDecision access(Customer customer) {
         if (!isEligibleForMortgage(customer)) {
             return MortgageDecision.rejected();
         }
@@ -38,7 +38,7 @@ class MortgageAssessor {
 
 - 주택담보대출 평가 테스트 코드
 ```java incorrect
-testAssess() {
+testAccess() {
     Customer customer = new Customer(
         income: new MonetaryAmount(50000, Currency.USD),
         outgoings: new MonetaryAmount(20000, Currency.USD),
@@ -46,9 +46,9 @@ testAssess() {
         hasExistingMortgage: false,
         isBanned: false
     );
-    MortgageAssessor mortgageAssessor = new MortgageAssessor();
+    MortgageAccessor mortgageAccessor = new MortgageAccessor();
 
-    MortgageDecision decision = mortgageAssessor.assess(customer);
+    MortgageDecision decision = mortgageAccessor.access(customer);
 
     assertThat(decision.isApproved()).isTrue();
     assertThat(decision.getMaxLoanAmount()).isEqualTo(
