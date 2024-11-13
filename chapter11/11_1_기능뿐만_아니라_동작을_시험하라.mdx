@@ -1,0 +1,77 @@
+---
+title: '기능뿐만 아니라 동작을 시험하라'
+author: 'hyunwok'
+---
+
+### 11.1.1 함수당 하나의 테스트 케이스만 있으면 적절하지 않을 때가 많다
+- 주택 담보 대출을 자동으로 평가하는 시스템의 많은 사항들
+    - access 함수는 주택담보대출을 받을 자격이 있는지 여부를 판단
+        - 신용등급이 좋다.
+        - 기존 주택담보대출이 없다.
+        - 은행에 의해 금지된 고객이 아니다.
+    - 헬퍼 함수를 사용해 자격이 있는 고객에 대한 최대 대출 금액을 결정하는데, 이 값은 연간 소득에서 연간 지출액을 뺀 값에 10을 곱한 값으로 계산된다.
+
+```java 
+class MortgageAssessor {
+    private const Double MORTGAGE_MULTIPLIER = 10.0;
+
+    MortgageDecision assess(Customer customer) {
+        if (!isEligibleForMortgage(customer)) {
+            return MortgageDecision.rejected();
+        }
+        return MortgageDecision.approve(getMaxLoanAmount(customer));
+    }
+
+    private static Boolean isEligibleForMortgage(Customer customer) {
+        return customer.hasGoodCreditRating() &&
+               !customer.hasExistingMortgage() &&
+               !customer.isBanned();
+    }
+
+    private static MonetaryAmount getMaxLoanAmount(Customer customer) {
+        return customer.getIncome()
+                       .minus(customer.getOutgoings())
+                       .multiplyBy(MORTGAGE_MULTIPLIER);
+    }
+}
+```
+
+- 주택담보대출 평가 테스트 코드
+```java incorrect
+testAssess() {
+    Customer customer = new Customer(
+        income: new MonetaryAmount(50000, Currency.USD),
+        outgoings: new MonetaryAmount(20000, Currency.USD),
+        hasGoodCreditRating: true,
+        hasExistingMortgage: false,
+        isBanned: false
+    );
+    MortgageAssessor mortgageAssessor = new MortgageAssessor();
+
+    MortgageDecision decision = mortgageAssessor.assess(customer);
+
+    assertThat(decision.isApproved()).isTrue();
+    assertThat(decision.getMaxLoanAmount()).isEqualTo(
+        new MonetaryAmount(300000, Currency.USD)
+    );
+}
+```
+
+- 다른 많은 사항을 테스트 하지 않은 채 남겨 두었고, 행동이 아닌 기능 테스트에 집중했다는 점이 문제다.
+
+### 11.1.2 해결책: 각 동작을 테스트하는 데 집중하라 
+- 함수 자체를 테스트하는 데만 집중하면, 정작 실제로 신경 써야 할 중요한 동작을 검증하지 않는 테스트 케이스를 작성하기가 매우 쉽다.
+- 각 동작에 대해 테스트를 진행하다보면 실제 작성한 코드보다 테스트 코드가 더 많아지는 경우가 있지만, 정상적이고 예상 가능한 일이다.
+    - 오히려 테스트 코드가 더 적다면 모든 동작이 제대로 테스트되고 있지 않음을 나타내는 경고 표시일 수 있다.
+
+#### 모든 동작이 테스트되었는지 거듭 확인하라 
+- 코드가 제대로 테스트되는지 여부를 측정하기 위한 한 가지 좋은 방법은 버그나 오류가 있음에도 테스트를 통과할 수 있는지에 대해 생각해보는 것이다.
+- 이들 중 어느 하나의 대한 대답이 "예"라면 모든 행동이 테스트되고 있지 못하다는 것을 의미한다.
+    - 삭제해도 여전히 컴파일되거나 테스트가 통과하는 코드 라인이 있는가?
+    - if 문의 참 거짓 논리를 반대로 해도 테스트가 통과하는가?
+    - 논리 연산자나 산술 연산자를 다른 것으로 대체해도 테스트가 통과하는가? 
+    - 상숫값이나 하드 코딩된 값을 변경해도 테스트가 통과하는가? 
+- 만약 수정된 코드가 assert나 check로 인해 오류가 발생하지 않는다면, 돌연변이 테스트로 실패를 초래하는지 어느정도 확인할 수 있다.
+
+#### 오류 시나리오를 잊지 말라 
+- 오류가 자주 발생하지 않을 것으로 예상되는 경우에도, 다소 경계 상황이나 드문 시나리오를 고려해야 한다.
