@@ -334,6 +334,10 @@ class FakeBankAccount implements BankAccount {
 - 구현 세부 사항 대신 최종 계정 잔액이 정확한지 확인한다.
     - 결과가 같다면 테스트가 통과되기에, 구현 세부 사항과 관련해서 훨씬 더 독립적이다.
     - 동작을 변경하지 않는 한 테스트는 실패하지 않는다.
+```java correct
+assertThat(fakeAccount.getActualBalance())
+    .isEqualTo(new MonetaryAmount(105.0, Currency.USD));
+```
 
 ### 10.4.6 목에 대한 의견
 - **목 찬성론자**(런던 학파) : 목과 스텁을 사용해서 의존성을 실제로 사용하는 것을 피해야 한다.
