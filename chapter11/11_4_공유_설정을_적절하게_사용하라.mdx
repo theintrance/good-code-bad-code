@@ -1,0 +1,225 @@
+---
+title: 공유 설정을 적절하게 사용하라
+author: bayernmuller
+---
+
+* 테스트 케이스는 의존성을 설정하거나 테스트 데이터 저장소에 값이 필요할 수도 있는 등 어느 정도의 설정이 필요할 수 있다.
+* 많은 테스트 프레임워크에서는 테스트 케이스 간 이런 설정을 쉽게 공유할 수 있는 기능을 제공한다.
+* 일반적으로 두 가지 시점에서 공유 설정 코드를 실행하도록 설정할 수 있다.
+    * **BeforeAll (OneTimeSetup)**: 테스트 케이스 실행 전 한 번만 실행
+    * **BeforeEach (Setup)**: 각 테스트 케이스 실행 전 마다 실행
+* 테스트 설정을 해체하거나 상태를 초기화 해야할 수도 있다.
+    * **AfterAll (OneTimeTearDown)**: 모든 테스트 케이스 실행 후 한 번만 실행
+    * **AfterEach (TearDown)**: 각 테스트 케이스 실행 후 마다 실행
+
+```java
+class MyClassTest {
+    @BeforeAll
+    void oneTimeSetUp() {
+        ...
+    }
+
+    @BeforeEach
+    void setUp() {
+        ...
+    }
+
+    @AfterAll
+    void oneTimeTearDown() {
+        ...
+    }
+
+    @AfterEach
+    void tearDown() {
+        ...
+    }
+
+    void testCase1() {
+        ...
+    }
+
+    void testCase2() {
+        ...
+    }
+}
+``` 
+
+* 이 코드에서 `testCase1`과 `testCase2`를 호출하면 다음과 같은 순서로 실행된다.
+    1. `oneTimeSetUp`
+    2. `setUp`
+    3. `testCase1`
+    4. `tearDown`
+    5. `setUp`
+    6. `testCase2`
+    7. `tearDown`
+    8. `oneTimeTearDown`
+
+* 이처럼 설정 코드 블록을 사용하면 설정을 서로 다른 테스트 케이스 간 공유할 수 있게 된다.
+    * **상태 공유**: 설정 코드가 BeforeAll 에 있으면 모든 케이스에서 BeforeAll 이 설정한 상태를 공유한다.
+        * 사용 예) 테스트 데이터베이스 초기화, 테스트 서버 시작
+    * **설정 공유**: 설정 코드가 BeforeEach 에 있으면 각 테스트 케이스에서 BeforeEach 가 설정한 모든 설정을 공유한다.
+
+
+### 11.4.1 상태 공유는 문제가 될 수 있다
+
+* 일반적으로 테스트 케이스를 서로 다른 케이스에 영향을 주지 않아야 한다.
+* 만약 `testCase1` 이 DB에 데이터를 추가한 상태에서 `testCase2` 가 실행되고 DB를 참조한다면?
+    * 테스트 대상 코드에 문제가 있어도 테스트가 성공할 수 있다.
+
+### 11.4.2 해결책: 상태를 공유하지 않거나 초기화 하라
+
+```java
+class MyClassTest {
+    ...
+    private Database database;
+
+    @BeforeAll
+    void oneTimeSetUp() {
+        database = Database.createInstance();
+        database.waitForReady();
+    }
+
+    ...
+
+    @AfterEach
+    void tearDown() {
+        database.reset(); // 각 테스트 케이스 실행 후 상태를 초기화한다.
+    }
+}
+```
+* AfterEach 에서 상태를 초기화하면 각 테스트 케이스가 서로 영향을 주지 않는다.
+* 테스트 케이스 간 상태 공유 뿐만 아니라, 테스트 대상 코드에서 전역 상태를 사용한다면 이것도 주의해야한다.
+
+### 11.4.3 설정 공유는 문제가 될 수 있다.
+
+```java
+class OrderPostageManagerTest {
+    private Order testOrder;
+
+    @BeforeEach
+    void setUp() {
+        testOrder = new Order(
+            customer: new Customer(
+                address: new Address("Test Address"),
+            ),
+            items: [
+                new Item(name: "Test Item 1"),
+                new Item(name: "Test Item 2"),
+                new Item(name: "Test Item 3"),
+            ]
+        );
+    }
+
+    void testGetPostageLabel_threeItems_largePackage() { ... }
+}
+```
+
+* 이 테스트 코드는 당장은 문제 없어보인다.
+* 하지만 여기서 "Hazardous" 한 아이템이 추가되는 상황을 가정해보자
+
+```java incorrect
+class OrderPostageManagerTest {
+    private Order testOrder;
+
+    @BeforeEach
+    void setUp() {
+        testOrder = new Order(
+            customer: new Customer(
+                address: new Address("Test Address"),
+            ),
+            items: [
+                new Item(name: "Test Item 1"),
+                new Item(name: "Test Item 2"),
+                new Item(name: "Test Item 3"),
+                new Item(name: "Hazardous Item", isHazardous: true),
+            ]
+        );
+    }
+
+    void testGetPostageLabel_threeItems_largePackage() { ... }
+    void testGetPostageLabel_hazardousItem_isHazardous() {
+        PostageManager manager = new PostageManager();
+        PostageLabel label = manager.getPostageLabel(testOrder);
+        assertThat(label.isHazardous()).isTrue();
+    }
+}
+```
+
+* Hazardous Item 이 추가되면서, threeItems 테스트 케이스에 대한 가정이 깨져버렸다.
+
+### 11.4.4 해결책: 중요한 설정은 테스트 케이스 내에서 정의하라
+
+* 각 테스트 케이스에 대해 반복해서 설정을 하는 것이 어려워보일 수 있지만 테스트 케이스가 특정 값이나 설정 상태에 의존한다면 그렇게 하는 것이 더 안전한 경우가 많다.
+    * 설정 하는 것은 헬퍼 메서드로 만들어 중복을 줄일 수 있다.
+
+```java correct
+class OrderPostageManagerTest {
+    ...
+    void testGetPostageLabel_threeItems_largePackage() {
+        Order order = createOrderWithItems([
+            new Item(name: "Test Item 1"),
+            new Item(name: "Test Item 2"),
+            new Item(name: "Test Item 3"),
+        ]);
+
+        PostageManager manager = new PostageManager();
+        PostageLabel label = manager.getPostageLabel(order);
+        assertThat(label.isLargePackage()).isTrue();
+    }
+
+    void testGetPostageLabel_hazardousItem_isHazardous() {
+        Order order = createOrderWithItems([
+            new Item(name: "Hazardous Item", isHazardous: true),
+        ]);
+
+        PostageManager manager = new PostageManager();
+        PostageLabel label = manager.getPostageLabel(order);
+        assertThat(label.isHazardous()).isTrue();
+    }
+
+    private Order createOrderWithItems(List<Item> items) { // helper method
+        return new Order(
+            customer: new Customer(address: new Address("Test Address")),
+            items: items,
+        );
+    }
+}
+```
+
+### 11.4.5 설정 공유가 적절한 경우
+
+* 설정 공유의 주의점에 대해서만 설명했지만 아예 설정 공유를 피하는 것은 아니다.
+* 테스트 코드에서 계속 사용하여야 하는 상수가 있다면 설정 공유를 사용하는 것이 적절하다.
+
+```java correct
+class OrderPostageManagerTest {
+    private const OrderMetadata ORDER_METADATA =
+        new OrderMetadata(
+            timestamp: Instant.ofEpochSecond(0),
+            serverIp: new IpAddress(0, 0, 0, 0),
+        );
+    
+    ...
+
+    void testGetPostageLabel_containsCustomerAddress() {
+        Address address = new Address("Test Address");
+        Order order = new Order(
+            metadata: ORDER_METADATA,
+            customer: new Customer(address: address),
+            items: [],
+        );
+
+        PostageLabel label = manager.getPostageLabel(order);
+        assertThat(label.getAddress()).isEqualTo(address);
+    }
+
+    ...
+    private Order createOrderWithItems(List<Item> items) {
+        return new Order(
+            metadata: ORDER_METADATA,
+            customer: new Customer(address: new Address("Test Address")),
+            items: items,
+        );
+    }
+}
+```
