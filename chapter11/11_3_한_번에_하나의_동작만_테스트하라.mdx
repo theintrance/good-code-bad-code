@@ -1,0 +1,137 @@
+---
+title: '한 번에 하나의 동작만 테스트하라'
+author: 'bayernmuller'
+---
+
+### 11.3.1 여러 동작을 한꺼번에 테스트하면 테스트가 제대로 안 될 수 있다
+
+```java 
+List<Coupon> getValidCoupons(List<Coupon> coupons, Customer customer) {
+    return coupons
+        .filter(coupon -> !coupon.alreadyRedeemed())
+        .filter(coupon -> !coupon.hasExpired())
+        .filter(coupon -> coupon.issuedTo() == customer)
+        .sortBy(coupon -> coupon.getValue(), SortingOrder.DESCENDING);
+}
+```
+
+* 이 코드는 쿠폰 리스트에서 유효한 쿠폰만을 찾아 내림차순으로 정렬하는 동작을 수행한다.
+
+```java incorrect
+void testGetValidCoupons_allBehaviors() {
+    Customer customer1 = new Customer("Test Customer 1");
+    Customer customer2 = new Customer("Test Customer 2");
+
+    Coupon redeemedCoupon = new Coupon(
+        alreadyRedeemed: true,
+        hasExpired: false,
+        issuedTo: customer1,
+        value: 100
+    );
+
+    Coupon expiredCoupon = new Coupon(
+        alreadyRedeemed: false,
+        hasExpired: true,
+        issuedTo: customer1,
+        value: 100
+    );
+
+    Coupon issuedToSomeoneElse = new Coupon(
+        alreadyRedeemed: false,
+        hasExpired: false,
+        issuedTo: customer2,
+        value: 100
+    );
+
+    Coupon validCoupon1 = new Coupon(
+        alreadyRedeemed: false,
+        hasExpired: false,
+        issuedTo: customer1,
+        value: 100
+    );
+
+    Coupon validCoupon2 = new Coupon(
+        alreadyRedeemed: false,
+        hasExpired: false,
+        issuedTo: customer1,
+        value: 200
+    );
+
+    List<Coupon> validCoupons = getValidCoupons(
+        [redeemedCoupon, expiredCoupon, issuedToSomeoneElse, validCoupon1, validCoupon2],
+        customer1);
+
+    assertThat(validCoupons).containsExactly(validCoupon2, validCoupon1).inOrder();
+}
+```
+
+* 이 테스트코드는 모든 경우의 수를 한 테스트 케이스 안에서 모두 처리하고있다.
+* 이러면 나중에 코드의 수정으로 테스트가 실패했을 때 왜 실패했는지 알기 어렵다.
+
+### 11.3.2 해결책: 각 동작은 자체 테스트 케이스에서 테스트하라
+
+```java correct
+void testGetValidCoupons_validCoupon_included() {
+    Customer customer = new Customer("Test Customer");
+    Coupon validCoupon = new Coupon(
+        alreadyRedeemed: false,
+        hasExpired: false,
+        issuedTo: customer,
+        value: 100
+    );
+
+    List<Coupon> validCoupons = getValidCoupons(
+        [validCoupon],
+        customer);
+
+    assertThat(validCoupons).containsExactly(validCoupon);
+}
+
+void testGetValidCoupons_alreadyRedeemed_excluded() {
+    Customer customer = new Customer("Test Customer");
+    Coupon redeemedCoupon = new Coupon(
+        alreadyRedeemed: true,
+        hasExpired: false,
+        issuedTo: customer,
+        value: 100
+    );
+
+    List<Coupon> validCoupons = getValidCoupons(
+        [redeemedCoupon],
+        customer);
+
+    assertThat(validCoupons).isEmpty();
+}
+
+void testGetValidCoupons_expired_excluded() { ... }
+void testGetValidCoupons_issuedToSomeoneElse_excluded() { ... }
+void testGetValidCoupons_returnedInDescendingValueOrder() { ... }
+```
+
+* 각 동작을 개별적으로 테스트하고 테스트 케이스에 적절한 이름을 부여하여 테스트가 실패할 경우 어떤 동작이 실패했는지 잘 알 수 있다.
+
+### 11.3.3 매개변수를 사용한 테스트
+
+* 테스트 프레임워크 중에 매개변수를 사용해 테스트할 수 있는 기능을 제공하는 프레임워크도 있다.
+
+```java
+[TestCase(true, false, TestName = "Already redeemed")]
+[TestCase(false, true, TestName = "Expired")]
+void testGetValidCoupons_excludesInvalidCoupons(Boolean alreadyRedeemed, Boolean hasExpired) {
+    Customer customer = new Customer("Test Customer");
+    Coupon coupon = new Coupon(
+        alreadyRedeemed: alreadyRedeemed,
+        hasExpired: hasExpired,
+        issuedTo: customer,
+        value: 100
+    );
+
+    List<Coupon> validCoupons = getValidCoupons(
+        [coupon],
+        customer);
+
+    assertThat(validCoupons).isEmpty();
+}
+```
+
+* 이렇게하면 테스트코드의 반복을 줄일 수 있다.
