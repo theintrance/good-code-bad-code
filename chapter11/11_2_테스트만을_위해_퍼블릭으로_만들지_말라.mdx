@@ -6,8 +6,8 @@ author: 'bayernmuller'
 ### 11.2.1 private 함수를 테스트하는 것은 바람직하지 않을 때가 많다
 
 ```java
-class MortgageAccessor {
-    MortgageDecision access(Customer customer) { ... } // public API
+class MortgageAssessor {
+    MortgageDecision assess(Customer customer) { ... } // public API
 
     private static Boolean isEligibleForMortgage(Customer customer) { // private helper
         ...
@@ -19,10 +19,10 @@ class MortgageAccessor {
 }
 ```
 
-* 위 `MortgageAccessor` 클래스의 목적은 신용 등급이 나쁜 경우 대출 신청을 거부하기 위함이다.
+* 위 `MortgageAssessor` 클래스의 목적은 신용 등급이 나쁜 경우 대출 신청을 거부하기 위함이다.
 
 ```java incorrect
-class MortgageAccessor {
+class MortgageAssessor {
     ...
     static Boolean isEligibleForMortgage(Customer customer) { 
         // private helper, but public now for testing
@@ -44,14 +44,14 @@ testIsEligibleForMortgage() {
         isBanned: false
     );
 
-    assertThat(MortgageAccessor.isEligibleForMortgage(customer)).isFalse();
+    assertThat(MortgageAssessor.isEligibleForMortgage(customer)).isFalse();
 }
 ```
 
 * 만약 위처럼 테스트 만을 위해 private 함수를 public 으로 만들었을 때 몇가지 문제가 있다.
     1. 실제로 우리가 신경쓰는 행동을 테스트 하는 것이 아니다.
         * 담보 대출 승인 여부를 판단하는 것이 목적이지, 고객 신용 평가 로직 자체를 테스트하는 것이 목적이 아니다.
-    2. 즉 내부 로직을 테스트 하므로써 원래 우리가 테스트로 보장해야하는 `access()` 함수의 동작을 보장하지 못한다.
+    2. 즉 내부 로직을 테스트 하므로써 원래 우리가 테스트로 보장해야하는 `assess()` 함수의 동작을 보장하지 못한다.
     3. 테스트는 세부 구현 사항에 독립적이지 못하게 된다.
         * 리팩토링 이후 테스트가 실패하게 될 것이다.
     4. private 키워드를 삭제하므로써 코드 계약의 세부 조항을 만들어버렸다.
@@ -59,7 +59,7 @@ testIsEligibleForMortgage() {
 ### 11.2.2 해결책: public API 를 통해 테스트하라
 
 ```java correct
-testAccess_badCreditRating_mortgageRejected() {
+testAssess_badCreditRating_mortgageRejected() {
     Customer customer = new Customer(
         income: new MonetaryAmount(50000, Currency.USD),
         outgoings: new MonetaryAmount(25000, Currency.USD),
@@ -68,8 +68,8 @@ testAccess_badCreditRating_mortgageRejected() {
         isBanned: false
     );
 
-    MortgageAccessor mortgageAccessor = new MortgageAccessor();
-    MortgageDecision decision = mortgageAccessor.access(customer);
+    MortgageAssessor mortgageAssessor = new MortgageAssessor();
+    MortgageDecision decision = mortgageAssessor.assess(customer);
     assertThat(decision.isApproved()).isFalse();
 }
 ```
@@ -79,7 +79,7 @@ testAccess_badCreditRating_mortgageRejected() {
 
 ### 11.2.3 해결책: 코드를 더 작은 단위로 분할하라
 
-* `MortgageAccessor` 클래스를 `MortgageAccessor` 와 `CreditRatingChecker` 로 분할하고, `MortgageAccessor` 가 `CreditRatingChecker` 에 의존하게 코드를 작성할 수 있다.
+* `MortgageAssessor` 클래스를 `MortgageAssessor` 와 `CreditRatingChecker` 로 분할하고, `MortgageAssessor` 가 `CreditRatingChecker` 에 의존하게 코드를 작성할 수 있다.
 
 ```java correct
 class CreditRatingChecker {
@@ -89,11 +89,11 @@ class CreditRatingChecker {
     }
 }
 
-class MortgageAccessor {
+class MortgageAssessor {
     ...
     private CreditRatingChecker creditRatingChecker;
 
-    MortgageDecision access(Customer customer) {
+    MortgageDecision assess(Customer customer) {
         ...
     }
 
