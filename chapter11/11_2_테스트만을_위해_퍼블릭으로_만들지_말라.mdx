@@ -76,3 +76,35 @@ testAccess_badCreditRating_mortgageRejected() {
 
 * public API 만을 테스트 하는 것은 물론 좋지만, 실용적으로 접근해야한다.
     * 어디서부터 어디까지가 public API 인지 판단하기 힘들고 반드시 테스트 되어야 하는 부분은 public 여부와 상관없이 테스트 되어야 한다.
+
+### 11.2.3 해결책: 코드를 더 작은 단위로 분할하라
+
+* `MortgageAccessor` 클래스를 `MortgageAccessor` 와 `CreditRatingChecker` 로 분할하고, `MortgageAccessor` 가 `CreditRatingChecker` 에 의존하게 코드를 작성할 수 있다.
+
+```java correct
+class CreditRatingChecker {
+    ...
+    Result<Boolean, Error> isCreditRatingGood(Int customerId) {
+        ...
+    }
+}
+
+class MortgageAccessor {
+    ...
+    private CreditRatingChecker creditRatingChecker;
+
+    MortgageDecision access(Customer customer) {
+        ...
+    }
+
+    private Result<Boolean, Error> isEligibleForMortgage(Customer customer) {
+        if (customer.hasExistingMortgage() || customer.isBanned()) {
+            return Result.ofValue(false);
+        }
+
+        return creditRatingChecker.isCreditRatingGood(customer.getId());
+    }
+}
+```
+
+* 이렇게 클래스를 나누어 신용 등급을 판단하는 클래스를 만들고 그것을 public API 로 오픈하므로써 테스트 코드를 작성하는 것이 훨씬 쉬워진다.
