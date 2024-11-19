@@ -5,17 +5,17 @@ author: 'hyunwok'
 
 ### 11.1.1 함수당 하나의 테스트 케이스만 있으면 적절하지 않을 때가 많다
 - 주택 담보 대출을 자동으로 평가하는 시스템의 많은 사항들
-    - access 함수는 주택담보대출을 받을 자격이 있는지 여부를 판단
+    - assess 함수는 주택담보대출을 받을 자격이 있는지 여부를 판단
         - 신용등급이 좋다.
         - 기존 주택담보대출이 없다.
         - 은행에 의해 금지된 고객이 아니다.
     - 헬퍼 함수를 사용해 자격이 있는 고객에 대한 최대 대출 금액을 결정하는데, 이 값은 연간 소득에서 연간 지출액을 뺀 값에 10을 곱한 값으로 계산된다.
 
 ```java 
-class MortgageAccessor {
+class MortgageAssessor {
     private const Double MORTGAGE_MULTIPLIER = 10.0;
 
-    MortgageDecision access(Customer customer) {
+    MortgageDecision assess(Customer customer) {
         if (!isEligibleForMortgage(customer)) {
             return MortgageDecision.rejected();
         }
@@ -38,7 +38,7 @@ class MortgageAccessor {
 
 - 주택담보대출 평가 테스트 코드
 ```java incorrect
-testAccess() {
+testAssess() {
     Customer customer = new Customer(
         income: new MonetaryAmount(50000, Currency.USD),
         outgoings: new MonetaryAmount(20000, Currency.USD),
@@ -46,9 +46,9 @@ testAccess() {
         hasExistingMortgage: false,
         isBanned: false
     );
-    MortgageAccessor mortgageAccessor = new MortgageAccessor();
+    MortgageAssessor mortgageAssessor = new MortgageAssessor();
 
-    MortgageDecision decision = mortgageAccessor.access(customer);
+    MortgageDecision decision = mortgageAssessor.assess(customer);
 
     assertThat(decision.isApproved()).isTrue();
     assertThat(decision.getMaxLoanAmount()).isEqualTo(

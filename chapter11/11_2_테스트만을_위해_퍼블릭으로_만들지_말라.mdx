@@ -1,0 +1,110 @@
+---
+title: '테스트만을 위해 퍼블릭으로 만들지 말라'
+author: 'bayernmuller'
+---
+
+### 11.2.1 private 함수를 테스트하는 것은 바람직하지 않을 때가 많다
+
+```java
+class MortgageAssessor {
+    MortgageDecision assess(Customer customer) { ... } // public API
+
+    private static Boolean isEligibleForMortgage(Customer customer) { // private helper
+        ...
+    }
+
+    private static MonetaryAmount getMaxLoanAmount(Customer customer) { // private helper
+        ...
+    }
+}
+```
+
+* 위 `MortgageAssessor` 클래스의 목적은 신용 등급이 나쁜 경우 대출 신청을 거부하기 위함이다.
+
+```java incorrect
+class MortgageAssessor {
+    ...
+    static Boolean isEligibleForMortgage(Customer customer) { 
+        // private helper, but public now for testing
+        ...
+    }
+
+    static MonetaryAmount getMaxLoanAmount(Customer customer) {
+        // private helper, but public now for testing
+        ...
+    }
+}
+
+testIsEligibleForMortgage() {
+    Customer customer = new Customer(
+        income: new MonetaryAmount(50000, Currency.USD),
+        outgoings: new MonetaryAmount(25000, Currency.USD),
+        hasGoodCreditRating: false,
+        hasExistingMortgage: false,
+        isBanned: false
+    );
+
+    assertThat(MortgageAssessor.isEligibleForMortgage(customer)).isFalse();
+}
+```
+
+* 만약 위처럼 테스트 만을 위해 private 함수를 public 으로 만들었을 때 몇가지 문제가 있다.
+    1. 실제로 우리가 신경쓰는 행동을 테스트 하는 것이 아니다.
+        * 담보 대출 승인 여부를 판단하는 것이 목적이지, 고객 신용 평가 로직 자체를 테스트하는 것이 목적이 아니다.
+    2. 즉 내부 로직을 테스트 하므로써 원래 우리가 테스트로 보장해야하는 `assess()` 함수의 동작을 보장하지 못한다.
+    3. 테스트는 세부 구현 사항에 독립적이지 못하게 된다.
+        * 리팩토링 이후 테스트가 실패하게 될 것이다.
+    4. private 키워드를 삭제하므로써 코드 계약의 세부 조항을 만들어버렸다.
+
+### 11.2.2 해결책: public API 를 통해 테스트하라
+
+```java correct
+testAssess_badCreditRating_mortgageRejected() {
+    Customer customer = new Customer(
+        income: new MonetaryAmount(50000, Currency.USD),
+        outgoings: new MonetaryAmount(25000, Currency.USD),
+        hasGoodCreditRating: false,
+        hasExistingMortgage: false,
+        isBanned: false
+    );
+
+    MortgageAssessor mortgageAssessor = new MortgageAssessor();
+    MortgageDecision decision = mortgageAssessor.assess(customer);
+    assertThat(decision.isApproved()).isFalse();
+}
+```
+
+* public API 만을 테스트 하는 것은 물론 좋지만, 실용적으로 접근해야한다.
+    * 어디서부터 어디까지가 public API 인지 판단하기 힘들고 반드시 테스트 되어야 하는 부분은 public 여부와 상관없이 테스트 되어야 한다.
+
+### 11.2.3 해결책: 코드를 더 작은 단위로 분할하라
+
+* `MortgageAssessor` 클래스를 `MortgageAssessor` 와 `CreditRatingChecker` 로 분할하고, `MortgageAssessor` 가 `CreditRatingChecker` 에 의존하게 코드를 작성할 수 있다.
+
+```java correct
+class CreditRatingChecker {
+    ...
+    Result<Boolean, Error> isCreditRatingGood(Int customerId) {
+        ...
+    }
+}
+
+class MortgageAssessor {
+    ...
+    private CreditRatingChecker creditRatingChecker;
+
+    MortgageDecision assess(Customer customer) {
+        ...
+    }
+
+    private Result<Boolean, Error> isEligibleForMortgage(Customer customer) {
+        if (customer.hasExistingMortgage() || customer.isBanned()) {
+            return Result.ofValue(false);
+        }
+
+        return creditRatingChecker.isCreditRatingGood(customer.getId());
+    }
+}
+```
+
+* 이렇게 클래스를 나누어 신용 등급을 판단하는 클래스를 만들고 그것을 public API 로 오픈하므로써 테스트 코드를 작성하는 것이 훨씬 쉬워진다.
