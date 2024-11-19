@@ -1,0 +1,82 @@
+---
+title: '테스트 용이성을 위해 의존성 주입을 사용하라'
+author: 'hyunwok'
+---
+
+### 11.6.1 하드 코딩된 의존성은 테스트를 불가능하게 할 수 있다
+```java incorrect
+class InvoiceReminder {
+    private final AddressBook addressBook;
+    private final EmailSender emailSender;
+
+    InvoiceReminder() {
+        this.addressBook = DataStore.getAddressBook();
+        this.emailSender = new EmailSenderImpl();
+    }
+
+    @CheckReturnValue
+    Boolean sendReminder(Invoice invoice) {
+        EmailAddress? address = 
+            addressBook.lookupEmailAddress(invoice.getCustomerId());
+        if (address == null) {
+            return false;
+        }
+        return emailSender.send(
+            address, 
+            InvoiceReminderTemplate.generate(invoice));
+    }
+}
+```
+
+- 위 코드에서 이상적인 테스트 동작
+    - sendReminder() 함수는 고객의 이메일 주소가 주소록에 있을 때 고객에게 알림 이메일을 보낸다.
+    - 알림 이메일이 전송되면 sendReminder() 함수는 참을 반환한다.
+    - 고객의 이메일 주소를 찾을 수 없을 때 sendReminder() 함수는 알림 이메일을 보내지 않는다.
+    - 알림 이메일이 전송되지 않으면 sendReminder() 함수는 거짓을 반환한다.
+- 허나 몇 가지 문제점으로 인해 상당히 어렵거나 불가능하다.
+    - 생성자에서 getAddressBook()으로 인스턴스를 생성 후 의존하기에 실제 고객을 갖고 테스트를 하는 것은 적합하지 않고, 테스트 환경에서는 실제 DB에 액세스 권한이 없기에 작동하지 않음.
+    - EmailSenderImpl를 자체적으로 생성하기에, 이메일을 실제로 보내는 결과를 초래한다.
+
+### 11.6.2 해결책: 의존성 주입을 사용하라 
+```java correct
+class InvoiceReminder {
+    private final AddressBook addressBook;
+    private final EmailSender emailSender;
+
+    InvoiceReminder(
+        AddressBook addressBook,
+        EmailSender emailSender) {
+        this.addressBook = addressBook;
+        this.emailSender = emailSender;
+    }
+
+    static InvoiceReminder create() {
+        return new InvoiceReminder(
+            DataStore.getAddressBook(),
+            new EmailSenderImpl());
+    }
+
+    @CheckReturnValue
+    Boolean sendReminder(Invoice invoice) {
+        EmailAddress? address =
+            addressBook.lookupEmailAddress(invoice.getCustomerId());
+        if (address == null) {
+            return false;
+        }
+        return emailSender.send(
+            address,
+            InvoiceReminderTemplate.generate(invoice));
+    }
+}
+```
+
+- 테스트 코드 작성 예시
+```java correct
+FakeAddressBook addressBook = new FakeAddressBook();
+fakeAddressBook.addEntry(
+    customerId: 123456,
+    emailAddress: "test@example.com");
+FakeEmailSender emailSender = new FakeEmailSender();
+
+InvoiceReminder invoiceReminder = new InvoiceReminder(addressBook, emailSender);
+```

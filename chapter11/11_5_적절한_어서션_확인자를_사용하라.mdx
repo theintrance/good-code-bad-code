@@ -1,0 +1,99 @@
+---
+title: '적절한 어서션 확인자를 사용하라'
+author: 'hyunwok'
+---
+
+- 어서션 확인자는 보통 테스트 통과 여부를 최종적으로 결정하기 위한 테스트 케이스 내의 코드이다.
+- 어서션 확인자의 두 가지 예
+```java
+assertThat(someValue).isEqualTo("expected value");
+assertThat(someList).contains("expected value");
+```
+
+### 11.5.1 부적합한 확인자는 테스트 실패를 잘 설명하지 못할 수 있다
+```java 
+class TextWidget {
+    private const ImmutableList<String> STANDARD_CLASS_NAMES =
+        ["text-widget", "selectable"];
+    private final ImmutableList<String> customClassNames;
+
+    TextWidget(List<String> customClassNames) {
+        this.customClassNames = ImmutableList.copyOf(customClassNames);
+    }
+
+    /**
+     * 구성요소에 대한 클래스 이름을 반환한다. 반환된 리스트에서 클래스 이름은
+     * 특정한 순서를 갖지 않는다.
+     */
+    ImmutableList<String> getClassNames() {
+        return STANDARD_CLASS_NAMES.concat(customClassNames); // 
+    }
+    ...
+}
+```
+
+- 위 코드에서 getClassNames를 호출했을 때 값이 제대로 들어갔는지 확인하는 테스트 코드를 작성하고자 한다.
+
+```java incorrect
+void testGetClassNames_containsCustomClassNames() {
+    TextWidget textWidget = new TextWidget(
+        ["custom_class_1", "custom_class_2"]);
+
+    assertThat(textWidget.getClassNames()).isEqualTo([
+        "text-widget",
+        "selectable",
+        "custom_class_1",
+        "custom_class_2",
+    ]);
+}
+```
+
+- 위 테스트 코드의 문제점
+    - 추가되는 요소에 대한 테스트뿐 아니라 기존에 있는 표준 클래스 이름 또한 테스트하여 의도한 것보다 더 많은 것을 테스트하고 있다.
+    - getClassNames()의 주석에 특정한 순서를 갖지 않는다고 했기에 순서가 변경된다면 테스트 코드는 실패한다.
+
+```java incorrect
+void testGetClassNames_containsCustomClassNames() {
+    TextWidget textWidget = new TextWidget(
+        ["custom_class_1", "custom_class_2"]);
+
+    ImmutableList<String> result = textWidget.getClassNames();
+
+    assertThat(result.contains("custom_class_1")).isTrue();
+    assertThat(result.contains("custom_class_2")).isTrue();
+}
+```
+
+- 위 테스트 코드의 문제점
+    - 테스트 케이스가 실패하는 경우, 실제 결과가 예상 결과와 어떻게 다른지 분명히 설명하지 않는다.
+    ```
+    테스트 케이스 testGetClassNames_containsCustomClassNames 실패: 
+    예상한 값은 참이지만 테스트 결과는 거짓입니다.
+    ```
+
+### 11.5.2 해결책: 적절한 확인자를 사용하라
+- 언어별 다양한 확인자
+    - 자바 : 트루스 라이브러리의 containsAtLeast() 확인자
+    - 자바스크립트 : 자스민 프레임워크의 jasmine.arrayContaing() 확인자
+
+``` java correct
+testGetClassNames_containsCustomClassNames() {
+    TextWidget textWidget = new TextWidget(
+        ["custom_class_1", "custom_class_2"]);
+
+    assertThat(textWidget.getClassNames())
+        .containsAtLeast("custom_class_1", "custom_class_2");
+}
+```
+
+- 원하는 값이 존재하기만 한다면, 하드 코딩된 클래스명이 업데이트되거나, 순서와 상관없이 테스트 성공한다.
+- 만약 실패하더라도 실패한 원인을 잘 설명해 준다.
+``` 
+테스트 케이스 testGetClassNames_containsCustomClassNames 실패:
+Not true that
+[text-widget, selectable, custom_class_2]는
+contains at least
+[custom_class_1, custom_class_2]를 포함하지 않습니다.
+------
+빠진 항목: custom_class_1
+```
