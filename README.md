@@ -18,7 +18,7 @@
     <a href="https://github.com/bayernmuller">@bayernmuller</a>
 </p>
 <p align="center">
-    <img src="https://github.com/hyunwok.png" width="100" height="100">
+    <img src="https://github.com/hyunwook13.png" width="100" height="100">
     <br>
-    <a href="https://github.com/hyunwok">@hyunwok</a>
+    <a href="https://github.com/hyunwook13">@hyunwook13</a>
 </p>
